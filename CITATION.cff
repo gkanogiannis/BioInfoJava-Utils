@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Gkanogiannis
+    given-names: Anestis
+    orcid: https://orcid.org/0000-0002-6441-0688
+title: "BioInfoJava-Utils. Various Bioinformatics utils in Java."
+version: 1.0.0
+doi: 10.5281/zenodo.5758275
+date-released: 2021-12-03

@@ -1,4 +1,4 @@
-# Agrobio_JavaUtils
+# BioInfoJava-Utils
 
 2017-2021
 

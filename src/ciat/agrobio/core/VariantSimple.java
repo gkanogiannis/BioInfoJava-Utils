@@ -21,25 +21,22 @@
  */
 package ciat.agrobio.core;
 
-import java.util.Arrays;
 import java.util.Comparator;
+import java.util.stream.IntStream;
 
-public class Variant implements Comparable<Variant>{
+public class VariantSimple implements Comparable<VariantSimple>{
 	
 	private int variantId;
-	private byte numAlleles;
-	private byte[][] dataRaw;
-	private byte[] dataSamplesP1;
-	private byte[] dataSamplesP2;
+	private String[] data;
 	private static AlphanumericComparator alnumComparator;
 	
 	static {
 		alnumComparator = new AlphanumericComparator();
 	}
 	
-	public Variant(int variantId, byte[][] dataRaw) {
+	public VariantSimple(int variantId, String[] data) {
 		this.variantId = variantId;
-		this.dataRaw = dataRaw;
+		this.data = data;
 	}
 
 	public int getVariantId() {
@@ -47,83 +44,28 @@ public class Variant implements Comparable<Variant>{
 	}
 	
 	public String getVariantVCFId() {
-		return new String(dataRaw[2]);
+		return data[2];
 	}
 	
-	public byte[][] getDataRaw() {
-		return dataRaw;
+	public String[] getData() {
+		return data;
 	}
 	
 	public String getVariantName() {
-		return new String(dataRaw[0])+"\t|\t"+
-			   new String(dataRaw[1])+"\t|\t"+
-			   new String(dataRaw[3])+"\t|\t"+
-			   new String(dataRaw[4]);
+		return data[0]+"\t|\t"+data[1]+"\t|\t"+data[3]+"\t|\t"+data[4];
 	}
 	
 	public String getInfo() {
-		return new String(dataRaw[7]);
+		return data[7];
 	}
 	
 	public String getFormat() {
-		return new String(dataRaw[8]);
+		return data[8];
 	}
 	
-	public void cleanDataRaw() {
-		dataRaw = Arrays.copyOf(dataRaw, 9);
-		//Arrays.fill(dataRaw,9,dataRaw.length,null);
-	}
-	
-	public void cleanDataSamples() {
-		this.dataSamplesP1 = null;
-		this.dataSamplesP2 = null;
-	}
-	
-	public void setNumAlleles(byte numAlleles) {
-		this.numAlleles = numAlleles;
-	}
-	
-	public byte getNumAlleles() {
-		return numAlleles;
-	}
-
-	public byte[] getDataSamplesP1() {
-		return dataSamplesP1;
-	}
-
-	public void setDataSamplesP1(byte[] dataSamplesP1) {
-		this.dataSamplesP1 = dataSamplesP1;
-	}
-
-	public byte[] getDataSamplesP2() {
-		return dataSamplesP2;
-	}
-
-	public void setDataSamplesP2(byte[] dataSamplesP2) {
-		this.dataSamplesP2 = dataSamplesP2;
-	}
-
-	@Override
-	public String toString() {
-		return this.variantId + "\t" + this.getVariantName();
-	}
-	
-	public String toVariantString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append(dataRaw[0]);
-		for(int i=1; i<dataRaw.length; i++) {
-			sb.append("\t"+new String(dataRaw[i]));
-		}
-		return sb.toString();
-	}
-	
-	/*
 	public double calculateHeterozygosity() {
 		double het = 0.0;
 		for(int i=9; i<data.length; i++) {
-			String format = variantData.get(8);
-			int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
-			String GT = variantData.get(i).split(":")[indexGT];
 			String GT = data[i].split(":")[0];
 			if(GT.equalsIgnoreCase("1/0") || GT.equalsIgnoreCase("0/1")) {
 				het += 1.0;
@@ -160,10 +102,9 @@ public class Variant implements Comparable<Variant>{
 		}
 		return common/(data.length-9-1-excludeIndexes.length);
 	}
-    */
 
 	@Override
-	public int compareTo(Variant other) {
+	public int compareTo(VariantSimple other) {
 		String chr1 = this.getVariantName().split("\t\\|\t")[0];
     	String chr2 = other.getVariantName().split("\t\\|\t")[0];
     	Integer pos1 = Integer.valueOf(this.getVariantName().split("\t\\|\t")[1]);
@@ -191,6 +132,15 @@ public class Variant implements Comparable<Variant>{
         else {
             return aComp;
         }
+	}
+	
+	public String toVariantString() {
+		return String.join("\t", data);
+	}
+	
+	@Override
+	public String toString() {
+		return this.toVariantString();
 	}
 		
 	static class AlphanumericComparator implements Comparator<String> {
@@ -241,11 +191,11 @@ public class Variant implements Comparable<Variant>{
 	            String str2 = new String(space2);
 	 
 	            int result;
-
+	 
 	            if (Character.isDigit(space1[0]) && Character.isDigit(space2[0])) {
-	                Integer firstNumberToCompare = Integer.valueOf(Integer
+	                Integer firstNumberToCompare = new Integer(Integer
 	                        .parseInt(str1.trim()));
-	                Integer secondNumberToCompare = Integer.valueOf(Integer
+	                Integer secondNumberToCompare = new Integer(Integer
 	                        .parseInt(str2.trim()));
 	                result = firstNumberToCompare.compareTo(secondNumberToCompare);
 	            } else {

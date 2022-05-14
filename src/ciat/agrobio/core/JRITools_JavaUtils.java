@@ -33,6 +33,8 @@ import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.RMainLoopCallbacks;
 import org.rosuda.JRI.Rengine;
 
+import ciat.agrobio.hcluster.HierarchicalCluster;
+
 public class JRITools_JavaUtils {
 	private static JRITools_JavaUtils instance = null;
 	private static Rengine re = null;
@@ -126,7 +128,7 @@ public class JRITools_JavaUtils {
 			if(extra) {
 				command = "treecut_hybrid <- "
 					+ "cutreeDynamic(dendro = tree_hclust, "
-					  + "cutHeight = "+(cutHeight==null?"NULL":cutHeight)+", "
+					  + "cutHeight = "+(cutHeight==null?"NULL":2.0*cutHeight)+", "
 					  + "minClusterSize = " + minClusterSize + ", "
 					  + "method = \"hybrid\", "
 					  + "distM = distancesMatrix, "
@@ -145,7 +147,7 @@ public class JRITools_JavaUtils {
 			else {
 				command = "treecut_hybrid <- "
 					+ "cutreeDynamic(dendro = tree_hclust, "
-					  + "cutHeight = "+(cutHeight==null?"NULL":cutHeight)+", "
+					  + "cutHeight = "+(cutHeight==null?"NULL":2.0*cutHeight)+", "
 					  + "minClusterSize = " + minClusterSize + ", "
 					  + "method = \"hybrid\", "
 					  + "distM = distancesMatrix, "
@@ -154,7 +156,7 @@ public class JRITools_JavaUtils {
 					  
 					  + "maxCoreScatter = NULL, minGap = NULL, " 
 					  + "maxAbsCoreScatter = NULL, minAbsGap = NULL, " 
-					  + "minSplitHeight = NULL, minAbsSplitHeight = "+(cutHeight==null?"NULL":cutHeight)+", "
+					  + "minSplitHeight = NULL, minAbsSplitHeight = "+(cutHeight==null?"NULL":2.0*cutHeight)+", "
 					  
 					  //+ "pamStage=TRUE, pamRespectsDendro=TRUE, useMedoids=FALSE, maxDistToLabel=NULL, maxPamDist="+(cutHeight==null?"NULL":cutHeight)+", respectSmallClusters=TRUE, "
 					  
@@ -181,17 +183,9 @@ public class JRITools_JavaUtils {
 			
 			
 			//find final clusters
-			TreeMap<Integer, TreeSet<String>> clusters = new TreeMap<Integer, TreeSet<String>>();
-			for(int i=0; i<result.length; i++){
-				int clusterId = (int)result[i];
-				TreeSet<String> cluster = clusters.get(clusterId);
-				if(cluster==null){
-					cluster = new TreeSet<String>();
-					clusters.put(clusterId, cluster);
-				}
-				String label = labels[i];
-				cluster.add(label);
-			}
+			HierarchicalCluster hc = new HierarchicalCluster();
+			TreeMap<Integer, TreeSet<String>> clusters = hc.findClusters(result, labels);
+	
 			return clusters;
 			
 			//return null;

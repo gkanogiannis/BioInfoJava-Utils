@@ -21,12 +21,10 @@
  */
 package ciat.agrobio.javautils;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,19 +33,15 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import ciat.agrobio.core.CalculateDistancesCOSINE;
+import ciat.agrobio.core.GeneralTools;
+import ciat.agrobio.core.VariantManager;
 import ciat.agrobio.core.VariantProcessor;
 import ciat.agrobio.io.VCFManager;
 
 @Parameters(commandDescription = "VCF2DIST")
 public class UtilVCF2DIST {
 
-	private static UtilVCF2DIST instance = new UtilVCF2DIST();
-
-	private UtilVCF2DIST() {
-	}
-
-	public static UtilVCF2DIST getInstance() {
-		return instance;
+	public UtilVCF2DIST() {
 	}
 
 	public static String getUtilName() {
@@ -75,11 +69,9 @@ public class UtilVCF2DIST {
 	public void go() {
 		try {
 			int cpus = Runtime.getRuntime().availableProcessors();
-			int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
-			//System.err.println("cpus=" + cpus);
-			//System.err.println("using=" + usingThreads);
-
-			ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData = new ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>>();
+			int usingThreads = (cpus < (numOfThreads+0) ? cpus : (numOfThreads+0));
+			System.err.println("cpus=" + cpus);
+			System.err.println("using=" + usingThreads);
 
 			CountDownLatch startSignal = new CountDownLatch(1);
 			CountDownLatch doneSignal = new CountDownLatch(usingThreads + 1);
@@ -89,48 +81,54 @@ public class UtilVCF2DIST {
 			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
 
 			Map<Integer, VariantProcessor> variantProcessors = new HashMap<Integer, VariantProcessor>();
-			VCFManager vcfm = new VCFManager(inputFileName, startSignal, doneSignal, samplesToVariantsData);
+			VariantManager vm = new VariantManager();
+			VCFManager vcfm = new VCFManager(vm, inputFileName, startSignal, doneSignal);
 			pool.execute(vcfm);
 
 			VariantProcessor.resetCounters();
 			// Starting threads
 			for (int i = 0; i < usingThreads; i++) {
-				VariantProcessor vp = new VariantProcessor(samplesToVariantsData, vcfm, startSignal, doneSignal);
+				VariantProcessor vp = new VariantProcessor(vm, vcfm, startSignal, doneSignal);
 				variantProcessors.put(vp.getId(), vp);
 				pool.execute(vp);
 			}
 
 			doneSignal.await();
 			pool.shutdown();
+			
+			vm.populateSampleVariant();
 
 			List<String> sampleNames = new ArrayList<String>();
-			for (int i = 9; i < vcfm.getHeaderData().size(); i++) {
-				sampleNames.add(vcfm.getHeaderData().get(i));
+			for (int i = 9; i < vcfm.getHeaderData().length; i++) {
+				sampleNames.add(new String(vcfm.getHeaderData()[i]));
 			}
 
-			//System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
+			System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
 
 			// Calculate distances
 			//double[][] distances = SampleVariantTools.calculateDistances(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, false);
+			CalculateDistancesCOSINE.resetCounters();
 			CalculateDistancesCOSINE fj = new CalculateDistancesCOSINE();
-			double[][] distances = fj.calculateDistances(usingThreads, samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, ignoremissing);
+			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoremissing);
 			
 			// Print data
+			@SuppressWarnings("unused")
 			int sampleCounter = 0;
-			DecimalFormat df = new DecimalFormat("#.############"); 
-			System.out.println(sampleNames.size()+"\t"+vcfm.getVariantIds().size());
-			for(int i=0; i<sampleNames.size(); i++) {
+			System.out.println(vm.getNumSamples()+"\t"+vm.getNumVariants());
+			for(int i=0; i<vm.getNumSamples(); i++) {
 				String sampleName1 = sampleNames.get(i);
 				System.out.print(sampleName1);
-				for (int j=0;j<sampleNames.size();j++) {
+				for (int j=0;j<vm.getNumSamples();j++) {
+					@SuppressWarnings("unused")
 					String sampleName2 = sampleNames.get(j);
-					System.out.print("\t"+df.format(distances[i][j]));
+					System.out.print("\t"+GeneralTools.decimalFormat.format(distances[i][j]));
 				}
 				System.out.println("");
 				sampleCounter++;
 				//if(++sampleCounter % 10 == 0) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
 			}
 			//System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
+
 		} 
 		catch (Exception e) {
 			e.printStackTrace();

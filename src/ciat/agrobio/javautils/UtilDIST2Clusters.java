@@ -33,13 +33,9 @@ import ciat.agrobio.hcluster.HierarchicalCluster;
 @Parameters(commandDescription = "DIST2Clusters")
 public class UtilDIST2Clusters {
 
-	private static UtilDIST2Clusters instance = new UtilDIST2Clusters();
-
-	private UtilDIST2Clusters() {
-	}
-
-	public static UtilDIST2Clusters getInstance() {
-		return instance;
+	private GeneralTools gTools = GeneralTools.getInstance();
+	
+	public UtilDIST2Clusters() {
 	}
 
 	public static String getUtilName() {
@@ -52,8 +48,8 @@ public class UtilDIST2Clusters {
 	@Parameter(description = "Input_File", required = true)
 	private String inputFileName;
 	
-	@Parameter(names = { "--numberOfThreads", "-t" })
-	private int numOfThreads = 1;
+	//@Parameter(names = { "--numberOfThreads", "-t" })
+	//private int numOfThreads = 1;
 	
 	@Parameter(names = { "--cutHeight", "-c" })
 	private Double cutHeight = null;
@@ -67,18 +63,17 @@ public class UtilDIST2Clusters {
 	@SuppressWarnings("unused")
 	public void go() {
 		try {
-			int cpus = Runtime.getRuntime().availableProcessors();
-			int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
-			System.err.println("cpus=" + cpus);
-			System.err.println("using=" + usingThreads);
+			//int cpus = Runtime.getRuntime().availableProcessors();
+			//int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
+			//System.err.println("cpus=" + cpus);
+			//System.err.println("using=" + usingThreads);
 
 			//Read distances matrix and sample names
-			//Object[] data = readDistancesSamples(inputFileName);
-			Object[] data = GeneralTools.readDistancesSamples(inputFileName);
+			Object[] data = gTools.readDistancesSamples(inputFileName);
 			
-			//HCluster
-			//TreeMap<Integer, TreeSet<String>> clusters = hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight);
-			TreeMap<Integer, TreeSet<String>> clusters = HierarchicalCluster.hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight, extra);
+			//HCluster cluster
+			HierarchicalCluster hc = new HierarchicalCluster();
+			TreeMap<Integer, TreeSet<String>> clusters = hc.hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight, extra);
 		} 
 		catch (Exception e) {
 			e.printStackTrace();

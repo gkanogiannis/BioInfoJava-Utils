@@ -31,6 +31,7 @@ import ciat.agrobio.io.VCFManager;
 
 public class SampleVariantTools {
 
+	/*
 	public static double[][] calculateDistances(ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData, List<String> sampleNames, VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean euclidean) {
 		try {
 			DecimalFormat df = new DecimalFormat("#.############"); 
@@ -101,6 +102,7 @@ public class SampleVariantTools {
 			return null;
 		}
 	}
+	*/
 	
 	public static HashMap<String, Double> calculateMissingData(ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData, List<String> sampleNames, VCFManager vcfm) {
 		try {

@@ -3,3 +3,9 @@
 /target/
 /.classpath
 /*.jar
+src/ciat/agrobio/io/VCFManager_OLD.java
+src/ciat/agrobio/javautils/UtilVCF2DIST_OLD.java
+src/ciat/agrobio/javautils/UtilVCF2TREE_OLD.java
+src/ciat/agrobio/core/GenotypeEncoder_OLD.java
+src/ciat/agrobio/core/CalculateDistancesCOSINE_OLD.java
+src/ciat/agrobio/core/VariantProcessor_OLD.java

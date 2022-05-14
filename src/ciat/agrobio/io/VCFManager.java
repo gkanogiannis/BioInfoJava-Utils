@@ -25,126 +25,45 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections4.list.SetUniqueList;
-
 import ciat.agrobio.core.GeneralTools;
 import ciat.agrobio.core.Variant;
+import ciat.agrobio.core.VariantManager;
 
 public class VCFManager implements Runnable{
-	private BlockingQueue<Variant> variants = null;
-	private ConcurrentHashMap<Integer,Variant> staticVariants = null;
-	private List<Integer> variantIds = null;
-	private List<String> variantNames = null;
-	
-	private List<String> commentData;
-	private List<String> headerData;
+	private List<byte[]> commentData;
+	private byte[][] headerData;
 	
 	private AtomicInteger currVariantId = new AtomicInteger(0);
 	
+	private VariantManager vm = null;
 	private String inputFileName = null;
 	private boolean done = false;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
 	
-	private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> individualsToVariantsData;
-	
-	public VCFManager(String inputFileName, CountDownLatch startSignal, CountDownLatch doneSignal, ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> individualsToVariantsData) {
+	public VCFManager(VariantManager vm, String inputFileName, CountDownLatch startSignal, CountDownLatch doneSignal) {
+		this.vm = vm;
 		this.inputFileName = inputFileName;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
-		this.individualsToVariantsData = individualsToVariantsData;
-		
-		this.variants = new LinkedBlockingQueue<Variant>();
-		this.staticVariants = new ConcurrentHashMap<Integer,Variant>();
-		this.variantIds = SetUniqueList.setUniqueList(new ArrayList<Integer>());
-		this.variantNames = SetUniqueList.setUniqueList(new ArrayList<String>());
-		
-		this.commentData = new ArrayList<>();
+	
+		this.commentData = new ArrayList<byte[]>();
 	}
 	
-	@SuppressWarnings("unused")
-	private void clear(){
-		if(variants!=null){
-			variants.clear();
-		}
-		variants = new LinkedBlockingQueue<Variant>();
-		
-		if(staticVariants!=null){
-			staticVariants.clear();
-		}
-		staticVariants = new ConcurrentHashMap<Integer,Variant>();
-		
-		if(variantIds!=null){
-			variantIds.clear();
-		}
-		variantIds = SetUniqueList.setUniqueList(new ArrayList<Integer>());
-		
-		if(variantNames!=null){
-			variantNames.clear();
-		}
-		variantNames = SetUniqueList.setUniqueList(new ArrayList<String>());
-	}
-	
-	public final List<String> getCommentData() {
+	public final List<byte[]> getCommentData() {
 		return commentData;
 	}
 	
-	public final List<String> getHeaderData() {
+	public final byte[][] getHeaderData() {
 		return headerData;
 	}
 	
-	public final ConcurrentHashMap<Integer,Variant> getStaticVariants(){
-		return staticVariants;
-	}
-	
-	public final List<Integer> getVariantIds() {
-		return variantIds;
-	}
-	
-	public final List<String> getVariantNames() {
-		return variantNames;
-	}
-	
-	public boolean hasMore() {
-		if(!done){
-			return true;
-		}
-		else{
-			return !this.variants.isEmpty();
-		}
-	}
-	
-	private boolean putVariant(Variant variant) {
-		try {
-			variants.put(variant);
-			staticVariants.put(variant.getVariantId(), variant);
-			variantIds.add(variant.getVariantId());
-			variantNames.add(variant.getVariantName());
-			return true;
-		} 
-		catch (Exception e) {
-			variants.remove(variant);
-			staticVariants.remove(variant.getVariantId());
-			variantIds.remove(variant.getVariantId());
-			variantNames.remove(variant.getVariantName());
-			return false;
-		}
-	}
-	
-	public Variant getNextVariant() {
-		try {
-			return variants.poll(100, TimeUnit.MILLISECONDS);
-		} 
-		catch (Exception e) {
-			return null;
-		}
+	public boolean isDone() {
+		return this.done;
 	}
 	
 	public void run() {
@@ -166,32 +85,60 @@ public class VCFManager implements Runnable{
 		    }
 		    
 		    VCFDecoder decoder = new VCFDecoder();
-		    VCFIterator<byte[]> iterator = VCFIterator.create(decoder, inputFiles);
-		    for (List<byte[]> chunk : iterator) {
-		    	System.err.println(GeneralTools.time()+" VCFManager: Chunk with "+chunk.size()+" lines.");
-		    	for(byte[] line : chunk) {		
-		    		if(line[0]=='#' && line[1]=='#') {
-		    			commentData.add((new String(line)).trim());
+		    //byte[][] line : split at tabs, byte[] is a string between tabs
+		    VCFIterator<byte[][]> iterator = VCFIterator.create(decoder, inputFiles);
+		    for (List<byte[][]> chunk : iterator) {
+		    	//System.err.println(GeneralTools.time()+" VCFManager: Chunk with "+chunk.size()+" lines.");
+		    	//for(byte[][] line : chunk) {
+		    	for(int i=0; i<chunk.size(); i++) {
+		    		byte[][] line = chunk.get(i);
+		    		if(line[0][0]=='#' && line[0][1]=='#') {
+		    			commentData.add(line[0]);
 		    			continue;
 		    		}
-		    		else if(line[0]=='#') {
-		    			headerData = Arrays.asList((new String(line)).trim().split("\\t"));
-		    			for(int i=9; i<headerData.size(); i++) {
-		    				individualsToVariantsData.put(headerData.get(i), new ConcurrentHashMap<Integer, Object>());
-		    			}
+		    		else if(line[0][0]=='#') {
+		    			headerData = line;
+		    			vm.setNumSamples(headerData.length - 9);
+		    		}
+		    		else if(line.length<10) {
+		    			continue;
 		    		}
 		    		else {
-		    			Variant variant = new Variant(currVariantId.incrementAndGet(), (new String(line)).trim().split("\\t"));
-		    			if(!putVariant(variant)) {
-		    				currVariantId.decrementAndGet();
+		    			Variant variant = new Variant(currVariantId.incrementAndGet(), line);
+		    			
+		    			if(vm.getPloidy()<=0) {
+		    				String format = variant.getFormat();
+		    				int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
+		    				String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
+		    				if(GT.contains("/")) {
+		    					vm.setPloidy((byte)GT.split("/").length);
+		    				}
+		    				else if(GT.contains("|")) {
+		    					vm.setPloidy((byte)GT.split("\\|").length);
+		    				}
+		    				else {
+		    					System.err.println("Cannot understand GT field.");
+		    					System.exit(vm.getPloidy());
+		    				}
+						}
+		    			
+		    			while(!vm.putVariantRaw(variant)) {
+		    				//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
+		    				//currVariantId.decrementAndGet();
+		    				//i--;
+		    				//variant = null;
+		    				TimeUnit.MILLISECONDS.sleep(500);
 		    			}
-		    		}	
+		    			
+		    			line = null;
+		    		}
 		    	}
 		    	chunk.clear();
 		    	chunk = null;
 		    }
 		    
 			System.err.println(GeneralTools.time()+" VCFManager: END READ");
+			vm.setNumVariants(this.currVariantId.get());
 			done = true;
 			doneSignal.countDown();
 		}

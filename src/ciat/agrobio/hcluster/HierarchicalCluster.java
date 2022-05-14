@@ -23,6 +23,8 @@ package ciat.agrobio.hcluster;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -52,12 +54,14 @@ public class HierarchicalCluster {
 	private int[] leafCount; // # leaves under each node
 	private double joinDistance[]; // Inter-cluster distance; NOT branch length
 	private Clade[] nodes;
+	
+	private GeneralTools gTools = GeneralTools.getInstance();
 
 	/**
 	 * Constructor using default linkage method.
 	 */
 	public HierarchicalCluster() {
-		this(null, null, AVERAGE);
+		this(null, null, COMPLETE);
 	}
 	
 	/**
@@ -66,7 +70,7 @@ public class HierarchicalCluster {
 	 * @param labels leaf labels for each row/column in the distance matrix
 	 */
 	public HierarchicalCluster(double[][] distanceMatrix, String[] labels) {
-		this(distanceMatrix, labels, AVERAGE);
+		this(distanceMatrix, labels, COMPLETE);
 	}
 	
 	/**
@@ -291,7 +295,7 @@ public class HierarchicalCluster {
 	}
 
 	public void setDistanceMatrix(double[][] distanceMatrix) {
-		if(distanceMatrix.length != distanceMatrix[0].length)
+		if(distanceMatrix!=null && distanceMatrix.length != distanceMatrix[0].length)
 			throw new IllegalArgumentException("Distance matrix must be square");
 		this.distanceMatrix = distanceMatrix;
 	}
@@ -320,34 +324,16 @@ public class HierarchicalCluster {
 			throw new IllegalArgumentException("Invalid linkage method: " + linkageMethod);
 	}
 	
-	public static TreeMap<Integer, TreeSet<String>> hclusteringClusters(String[] sampleNames, double[][] distances, Integer minClusterSize, Double cutHeight, boolean extra){
+	public TreeMap<Integer, TreeSet<String>> hclusteringClusters(String[] sampleNames, double[][] distances, Integer minClusterSize, Double cutHeight, boolean extra){
 		try {
-			System.err.println(GeneralTools.time()+" Distances="+distances.length+"x"+distances[0].length);
-			
-			String method = HierarchicalCluster.COMPLETE;
-			HierarchicalCluster hc = new HierarchicalCluster(distances, sampleNames);
-			hc.setLinkageMethod(method);
-			Clade root = hc.cluster();
-			
-			PhylipWriter writer = new PhylipWriter();
-			StringWriter sw = new StringWriter();
-			writer.setOutput(sw);
-			try {
-				writer.write(new DefaultTreeModel(root));
-			} 
-			catch(IOException ex) {
-				ex.printStackTrace();
-			}
-			
-			String treeString = sw.toString().replace("\n", "");
-			System.err.println("hierarchical method="+method);
+			String treeString = this.hclusteringTree(sampleNames,distances);
 			//System.err.println(treeString);
 			//System.err.println(System.getProperty("java.library.path"));
 			
 			//Labels need to be in the order they appear in the tree string, before passed to dynamictreecut.
 			//So we reorder the labels and then the distances matrix.
-			String[] labelsReordered = GeneralTools.reorderLabels(sampleNames, treeString);
-			double[][] distancesReordered = GeneralTools.reorderDistances(distances, sampleNames, labelsReordered);
+			String[] labelsReordered = gTools.reorderLabels(sampleNames, treeString);
+			double[][] distancesReordered = gTools.reorderDistances(distances, sampleNames, labelsReordered);
 		
 			System.err.println("preJRI");
 			JRITools_JavaUtils jritools = JRITools_JavaUtils.getInstance(null);
@@ -376,15 +362,72 @@ public class HierarchicalCluster {
 		}
 	}
 	
-	public static String hclusteringTree(String[] sampleNames, double[][] distances){
+	public String[] hclusteringClustersNoJRI(TreeMap<Integer, TreeSet<String>> clusters){
+		try {
+			ArrayList<String> al = new ArrayList<String>();
+			System.out.println(GeneralTools.time()+" Clusters="+clusters.size()+"\n");
+			for(Entry<Integer, TreeSet<String>> entry : clusters.entrySet()){
+				StringBuilder sb = new StringBuilder();
+				int clusterId = entry.getKey();
+				sb.append(clusterId);
+				TreeSet<String> cluster = entry.getValue();
+				sb.append(" "+cluster.size());
+				//System.err.println("Cluster\t"+clusterId+"="+cluster.size());
+				for(String name : cluster){
+					//System.err.println("\t"+name);
+					System.out.println(name+"\t"+clusterId+"\t"+cluster.size());
+					sb.append(" "+name);
+				}
+				al.add(sb.toString());
+			}
+			System.out.println("\n\n");
+			
+			String[] ret = new String[al.size()];
+	        ret = al.toArray(ret);
+	        
+	        return ret;
+		}
+		catch(Exception e) {
+		    e.printStackTrace();
+		    return null;
+		}
+	}
+	
+	public TreeMap<Integer, TreeSet<String>> findClusters(double[] result, String[] labels) {
+		try {
+			TreeMap<Integer, TreeSet<String>> clusters = new TreeMap<Integer, TreeSet<String>>();
+			for(int i=0; i<result.length; i++){
+				int clusterId = (int)result[i];
+				TreeSet<String> cluster = clusters.get(clusterId);
+				if(cluster==null){
+					cluster = new TreeSet<String>();
+					clusters.put(clusterId, cluster);
+				}
+				String label = labels[i];
+				cluster.add(label);
+			}
+			return clusters;
+		}
+		catch(Exception e) {
+		    e.printStackTrace();
+		    return null;
+		}
+	}
+	
+	public TreeMap<Integer, TreeSet<String>> findClusters(int[] result, String[] labels) {
+		return this.findClusters(Arrays.stream(result).asDoubleStream().toArray(), labels);
+	}
+	
+	public String hclusteringTree(String[] sampleNames, double[][] distances){
 		try {
 			System.err.println(GeneralTools.time()+" Distances="+distances.length+"x"+distances[0].length);
 			
 			String method = HierarchicalCluster.COMPLETE;
-			HierarchicalCluster hc = new HierarchicalCluster(distances, sampleNames);
-			hc.setLinkageMethod(method);
+			this.setDistanceMatrix(distances);
+			this.setLeafLabels(sampleNames);
+			this.setLinkageMethod(method);
 			System.err.println("hierarchical method="+method);
-			Clade root = hc.cluster();
+			Clade root = this.cluster();
 			
 			PhylipWriter writer = new PhylipWriter();
 			StringWriter sw = new StringWriter();
@@ -405,10 +448,7 @@ public class HierarchicalCluster {
 		}
 	}
 	
-	/**
-	 * Test.
-	 * @param args none used
-	 */
+	/*
 	public static void main(String[] args) {
 		// Bad example: the order doesn't change...
 		double[][] data5 = { 
@@ -459,5 +499,6 @@ public class HierarchicalCluster {
 			System.out.println();
 		}
 	}
+	*/
 	
 }

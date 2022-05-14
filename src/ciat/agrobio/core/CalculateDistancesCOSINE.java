@@ -21,11 +21,8 @@
  */
 package ciat.agrobio.core;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
@@ -39,11 +36,15 @@ public class CalculateDistancesCOSINE {
 	public CalculateDistancesCOSINE() {
 	}
 	
-	public double[][] calculateDistances(int numOfThreads, ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData, List<String> sampleNames, VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean ignoremissing) {
+	public static void resetCounters(){
+		CalculateDistancesChildTask.resetCounters();
+	}
+	
+	public double[][] calculateDistances(int numOfThreads, List<String> sampleNames, VariantManager vm, VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean ignoremissing) {
 		try {
 			int numOfSamples = sampleNames.size();
 			double[][] distances = new double[numOfSamples][numOfSamples]; 
-			CalculateDistancesTask task = new CalculateDistancesTask(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, ignoremissing, distances);
+			CalculateDistancesTask task = new CalculateDistancesTask(sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoremissing, distances);
 			ForkJoinPool pool = new ForkJoinPool(numOfThreads);
 			pool.execute(task);
 			
@@ -58,18 +59,14 @@ public class CalculateDistancesCOSINE {
 
 @SuppressWarnings("serial")
 class CalculateDistancesTask extends RecursiveTask<double[][]> {
-	private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData;
 	private List<String> sampleNames;
-	private VCFManager vcfm;
+	private VariantManager vm;
 	private boolean ignoreHets, onlyHets, ignoremissing;
 	
 	private double[][] distances;
 	
-	public CalculateDistancesTask(ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData, 
-			   					  List<String> sampleNames, VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean ignoremissing, double[][] distances) {
-		
-		this.samplesToVariantsData = samplesToVariantsData;
-		this.sampleNames = sampleNames; this.vcfm = vcfm; this.ignoreHets = ignoreHets;
+	public CalculateDistancesTask(List<String> sampleNames, VariantManager vm, VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean ignoremissing, double[][] distances) {
+		this.sampleNames = sampleNames; this.vm = vm; this.ignoreHets = ignoreHets;
 		this.onlyHets = onlyHets; this.ignoremissing = ignoremissing; this.distances = distances;
 	}
 
@@ -77,7 +74,7 @@ class CalculateDistancesTask extends RecursiveTask<double[][]> {
 	protected double[][] compute() {
 		List<ForkJoinTask> children = new ArrayList<ForkJoinTask>();
 		for ( int row=sampleNames.size()-1; row>=0; row--) {
-			children.add(new CalculateDistancesChildTask(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, ignoremissing, distances, row));
+			children.add(new CalculateDistancesChildTask(sampleNames, vm, ignoreHets, onlyHets, ignoremissing, distances, row));
 		}
 		invokeAll(children);
 		return distances;
@@ -91,78 +88,92 @@ class CalculateDistancesChildTask extends RecursiveAction {
 	private static AtomicInteger taskCount = new AtomicInteger(0);
 	private final int id = taskCount.getAndIncrement();
 	
-	private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData;
 	private List<String> sampleNames;
-	private VCFManager vcfm;
+	private VariantManager vm;
 	private boolean ignoreHets, onlyHets, ignoremissing;
 	
 	private double[][] distances;
 	private int row;
 	
-	public CalculateDistancesChildTask(ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> samplesToVariantsData, List<String> sampleNames, 
-									   VCFManager vcfm, boolean ignoreHets, boolean onlyHets, boolean ignoremissing, double[][] distances, int row) {
-		this.samplesToVariantsData = samplesToVariantsData;
-		this.sampleNames = sampleNames; this.vcfm = vcfm; this.ignoreHets = ignoreHets;
+	public static void resetCounters(){
+		sampleCounter = new AtomicInteger(0);
+		taskCount = new AtomicInteger(0);
+	}
+	
+	public CalculateDistancesChildTask(List<String> sampleNames, VariantManager vm,
+									   boolean ignoreHets, boolean onlyHets, boolean ignoremissing, double[][] distances, int row) {
+		this.sampleNames = sampleNames; this.vm = vm; this.ignoreHets = ignoreHets;
 		this.onlyHets = onlyHets; this.ignoremissing = ignoremissing; this.distances = distances; this.row = row;
 	}
 
 	@Override
 	protected void compute() {
-		DecimalFormat df = new DecimalFormat("#.############"); 
 		try {
-			String sampleName1 = sampleNames.get(row);
+			byte ploidy = vm.getPloidy();
+			//String sampleName1 = sampleNames.get(row);
 			//System.err.print(sampleName1);
+			double dot;
+			double notmissing;
+			double norm1;
+			double norm2;
 			for (int column=sampleNames.size()-1;column>=row;column--) {
-				String sampleName2 = sampleNames.get(column);
-				double dot = 0.0;
-				double notmissing = 0.0;
-				double norm1 = 0.0;
-				double norm2 = 0.0;
-				Iterator<Integer> iterator = vcfm.getVariantIds().iterator();
-				while (iterator.hasNext()) {
-					Integer variantId = iterator.next();
-					Integer[] GTCode1 = (Integer[])samplesToVariantsData.get(sampleName1).get(variantId);
-					Integer[] GTCode2 = (Integer[])samplesToVariantsData.get(sampleName2).get(variantId);
-					
-					if((GTCode1==null && GTCode2==null) || (GTCode1.length==0 && GTCode2.length==0))
-						continue;
-					else if(ignoreHets && ((GTCode1!=null&&GTCode1.length==3&&GTCode1[1]==1) || (GTCode2!=null&&GTCode2.length==3&&GTCode2[1]==1)))
-						continue;
-					else if(onlyHets && ((GTCode1!=null&&GTCode1.length==3&&GTCode1[1]!=1) && (GTCode2!=null&&GTCode2.length==3&&GTCode2[1]!=1)))
-						continue;
-					else if((GTCode1==null || GTCode1.length==0) && (GTCode2!=null&&GTCode2.length==3))
-						norm2 += ( (GTCode2[0]*GTCode2[0]) + (GTCode2[1]*GTCode2[1]) + (GTCode2[2]*GTCode2[2]) );
-					else if((GTCode2==null || GTCode2.length==0) && (GTCode1!=null&&GTCode1.length==3))
-						norm1 += ( (GTCode1[0]*GTCode1[0]) + (GTCode1[1]*GTCode1[1]) + (GTCode1[2]*GTCode1[2]) );
-					else {
-						dot += ( (GTCode1[0]*GTCode2[0]) + (GTCode1[1]*GTCode2[1]) + (GTCode1[2]*GTCode2[2]) );
-						norm1 += ( (GTCode1[0]*GTCode1[0]) + (GTCode1[1]*GTCode1[1]) + (GTCode1[2]*GTCode1[2]) );
-						norm2 += ( (GTCode2[0]*GTCode2[0]) + (GTCode2[1]*GTCode2[1]) + (GTCode2[2]*GTCode2[2]) );
-						notmissing++;
+				//String sampleName2 = sampleNames.get(column);
+				dot = 0.0;
+				notmissing = 0.0;
+				norm1 = 0.0;
+				norm2 = 0.0;
+				int numVariants = vm.getNumVariants();
+				if(ploidy==2) {
+					for(int i=0; i<numVariants; i++) {
+						byte dataS1P1 = vm.getSampleXvariantP1()[row][i];
+						byte dataS1P2 = vm.getSampleXvariantP2()[row][i];
+						byte dataS2P1 = vm.getSampleXvariantP1()[column][i];
+						byte dataS2P2 = vm.getSampleXvariantP2()[column][i];
+
+						if( GenotypeEncoder.isMis(dataS1P1, dataS1P2) && GenotypeEncoder.isMis(dataS2P1, dataS2P2) ) {
+							continue;
+						}
+						else if(ignoreHets &&
+								(GenotypeEncoder.isHet(dataS1P1, dataS1P2)||GenotypeEncoder.isHet(dataS2P1, dataS2P2)) ) {
+							continue;
+						}
+						else if(onlyHets &&
+								(!GenotypeEncoder.isHet(dataS1P1, dataS1P2)&&!GenotypeEncoder.isHet(dataS2P1, dataS2P2)) ) {
+							continue;
+						}
+						else if( GenotypeEncoder.isMis(dataS1P1, dataS1P2) ) {
+							norm2 += 1;
+						}
+						else if( GenotypeEncoder.isMis(dataS2P1, dataS2P2) ) {
+							norm1 += 1;
+						}
+						else {
+							dot += ((dataS1P1&dataS2P1)==(byte)0?-0.5:0.5) + ((dataS1P2&dataS2P2)==(byte)0?-0.5:0.5);
+							norm1 += 1;
+							norm2 += 1;
+							notmissing++;
+						}
 					}
-				}
-				if(ignoremissing) {	
-					double cosine = dot / notmissing;
-					if(Double.isInfinite(cosine) || Double.isNaN(cosine)) cosine = 0.0;
-					
-					double distance = 1.0 - cosine;
-					if(distance<=0.0) distance = 0.0;
-					
-					distances[row][column] = Double.parseDouble(df.format(distance));
-					distances[column][row] = distances[row][column];
-				}
-				else {
-					double cosine = dot / (Math.sqrt(norm1)*Math.sqrt(norm2));
-					if(Double.isInfinite(cosine) || Double.isNaN(cosine)) cosine = 0.0;
-					
-					double distance = 1.0 - cosine;
-					if(distance<=0.0) distance = 0.0;
-					
-					//double distance = -1.0*Math.log(cosine);
-					//if(distance<=0.0) distance = 0.0;
-					
-					distances[row][column] = Double.parseDouble(df.format(distance));
-					distances[column][row] = distances[row][column];
+					if(ignoremissing) {	
+						double cosine = dot / notmissing;
+						if(Double.isInfinite(cosine) || Double.isNaN(cosine)) cosine = -1.0;
+						
+						double distance = (1.0 - cosine)/2.0;
+						if(distance<0.0) distance = 0.0;
+						
+						distances[row][column] = Double.parseDouble(GeneralTools.decimalFormat.format(distance));
+						distances[column][row] = distances[row][column];
+					}
+					else {
+						double cosine = dot / (Math.sqrt(norm1)*Math.sqrt(norm2));
+						if(Double.isInfinite(cosine) || Double.isNaN(cosine)) cosine = -1.0;
+						
+						double distance = (1.0 - cosine)/2.0;
+						if(distance<0.0) distance = 0.0;
+						
+						distances[row][column] = Double.parseDouble(GeneralTools.decimalFormat.format(distance));
+						distances[column][row] = distances[row][column];
+					}
 				}
 			}
 			int count = sampleCounter.incrementAndGet();

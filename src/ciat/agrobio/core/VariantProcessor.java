@@ -22,8 +22,6 @@
 package ciat.agrobio.core;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,11 +34,11 @@ public class VariantProcessor implements Runnable {
 	private static AtomicInteger taskCount = new AtomicInteger(0);
 	
 	private final int id = taskCount.getAndIncrement();
+	private VariantManager vm = null;
 	private VCFManager vcfm = null;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
 	
-	private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> individualsToVariantsData;
 	//private ConcurrentSkipListSet<String> variantNames;
 	
 	public static void resetCounters(){
@@ -48,8 +46,8 @@ public class VariantProcessor implements Runnable {
 		taskCount = new AtomicInteger(0);
 	}
 	
-	public VariantProcessor(ConcurrentHashMap<String, ConcurrentHashMap<Integer, Object>> individualsToVariantsData, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
-		this.individualsToVariantsData = individualsToVariantsData;
+	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
+		this.vm = vm;
 		this.vcfm = vcfm;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
@@ -76,9 +74,11 @@ public class VariantProcessor implements Runnable {
 			startSignal.await();
 			boolean done = false;
 			while(!done){
-				Variant variant = vcfm.getNextVariant();
+				Variant variant = vm.getNextVariantRaw();
+				int numSamples = vm.getNumSamples();
+				byte ploidy = vm.getPloidy();
 				if(variant==null){
-					if(!vcfm.hasMore()){
+					if(!vm.hasMoreRaw() && vcfm.isDone()){
 						done = true;
 						break;
 					}
@@ -86,20 +86,39 @@ public class VariantProcessor implements Runnable {
 				}
 				//Process variant data
 				int count = variantCount.incrementAndGet(); 
-				if(count % 10000 == 0){
+				if(count % 50000 == 0){
 					System.err.println(GeneralTools.time()+" VariantProcessor: "+id+"\t"+count);
 				}
-				List<String> variantData = Arrays.asList(variant.getData());
-				int variantId = variant.getVariantId();
-				//variantNames.add(variantName);
-				String format = variantData.get(8);
-				int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
-				for(int i=9; i< vcfm.getHeaderData().size(); i++) {
-					String GT = variantData.get(i).split(":")[indexGT];
-					Object GTCode;
-					GTCode = GenotypeEncoder.encodeGTComplex(GT);
-					individualsToVariantsData.get(vcfm.getHeaderData().get(i)).put(variantId, GTCode);
+				
+				byte numAlleles=0;
+				int indexGT = Arrays.asList(variant.getFormat().split(":")).indexOf("GT");
+				if(ploidy==2) {
+					byte[][] variantDataRaw = variant.getDataRaw();
+					byte[] variantDataSamplesP1 = new byte[numSamples];
+					byte[] variantDataSamplesP2 = new byte[numSamples];
+					variant.setDataSamplesP1(variantDataSamplesP1);
+					variant.setDataSamplesP2(variantDataSamplesP2);
+					String GT;
+					byte[] GTCode;
+					for(int i=0; i<numSamples; i++) {
+						GT = new String(variantDataRaw[i+9]).split(":")[indexGT];
+						GTCode = GenotypeEncoder.encodeGT(GT,ploidy);
+						variantDataSamplesP1[i] = GTCode[0];
+						variantDataSamplesP2[i] = GTCode[1];
+						if(GTCode[ploidy]>numAlleles) {
+							numAlleles = GTCode[ploidy];
+						}
+					}
 				}
+				else {
+					System.err.println(" Ploidy "+ploidy+" is not yet supported.");
+					System.exit(ploidy);
+				}
+				variant.setNumAlleles(numAlleles);
+				if(vm.isCleanVariantData()) {
+					variant.cleanDataRaw();
+				}
+				vm.putVariantQueue(variant);
 			}
 			doneSignal.countDown();
 		}
@@ -107,6 +126,5 @@ public class VariantProcessor implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
 	
 }

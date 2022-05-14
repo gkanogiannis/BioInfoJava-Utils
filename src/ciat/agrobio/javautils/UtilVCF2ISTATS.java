@@ -27,10 +27,12 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 
 import com.beust.jcommander.Parameter;
@@ -41,11 +43,7 @@ import ciat.agrobio.core.GeneralTools;
 @Parameters(commandDescription = "VCF2ISTATS")
 public class UtilVCF2ISTATS {
 	
-	private static UtilVCF2ISTATS instance = new UtilVCF2ISTATS();
-	
-	private UtilVCF2ISTATS() {}
-	
-	public static UtilVCF2ISTATS getInstance() {return instance;}
+	public UtilVCF2ISTATS() {}
 	
 	public static String getUtilName() {
 		return "VCF2ISTATS";
@@ -94,6 +92,9 @@ public class UtilVCF2ISTATS {
 				}
 				else {
 					List<String> variantData = Arrays.asList(line.split("\\t"));
+					if(variantData.size() < 10) {
+						continue;
+					}
 					String format = variantData.get(8);
 					int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
 					for(int i=9; i<headerData.size(); i++) {
@@ -121,13 +122,13 @@ public class UtilVCF2ISTATS {
 							indiv.set(3, (int)indiv.get(3)+1);
 	
 					}
-					if(++varCounter % 1000 == 0) System.err.println(GeneralTools.time()+" Variants Processed : \t"+varCounter);
+					if(++varCounter % 50000 == 0) System.err.println(GeneralTools.time()+" Variants Processed : \t"+varCounter);
 				}
 			}
 			br.close();
 			
-			NumberFormat formatter = new DecimalFormat("#0.0000");
-			System.out.println("INDIV\tN_SITES\t_N_HET\tN_ALT\tN_REF\tN_MISS\tP_HET\tP_ALT\tP_REF\tP_MISS");
+			NumberFormat formatter = new DecimalFormat("#0.0000", new DecimalFormatSymbols(Locale.US));
+			System.out.println("INDIV\tN_SITES\tN_HET\tN_ALT\tN_REF\tN_MISS\tP_HET\tP_ALT\tP_REF\tP_MISS");
 			for(int i=0; i<numOfInd;i++) {
 				String indivName = (String)((ArrayList<Object>)indivStats.get(i)).get(0);
 				int n_sites = (int)((ArrayList<Object>)indivStats.get(i)).get(1);

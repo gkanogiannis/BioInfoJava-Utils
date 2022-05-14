@@ -29,7 +29,6 @@ import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
@@ -69,7 +68,6 @@ public class UtilDIST2Hist {
 	@Parameter(names={"--settings", "-s"}, description = "Settings for bins,width,height")
 	private String settings = "100,1024,768";
 
-	@SuppressWarnings("unused")
 	public void go() {
 		try {
 			//Read distances matrix and sample names
@@ -102,7 +100,7 @@ public class UtilDIST2Hist {
 				}
 			}
 			
-			double[] data =  ArrayUtils.toPrimitive(dataList.toArray(new Double[0]));
+			double[] data = dataList.stream().mapToDouble(Double::doubleValue).toArray();
 			
 			HistogramDataset dataset = new HistogramDataset();
 			dataset.setType(HistogramType.FREQUENCY);
@@ -111,12 +109,8 @@ public class UtilDIST2Hist {
 	        String plotTitle = "";
 	        String xAxis = "Distance";
 	        String yAxis = "Density";
-	        PlotOrientation orientation = PlotOrientation.VERTICAL;
-	        boolean show = false;
-	        boolean toolTips = false;
-	        boolean urls = false;
-	        JFreeChart chart = ChartFactory.createHistogram(plotTitle, xAxis, yAxis,
-	                                                        dataset, orientation, show, toolTips, urls);
+	        JFreeChart chart = ChartFactory.createHistogram(plotTitle, xAxis, yAxis,dataset,
+	        		PlotOrientation.VERTICAL,false,false,false);
 	        chart.setBackgroundPaint(Color.white);
 	        
 	        return chart;

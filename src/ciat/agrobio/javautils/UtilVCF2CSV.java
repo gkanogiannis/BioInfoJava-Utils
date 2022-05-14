@@ -96,7 +96,7 @@ public class UtilVCF2CSV {
 					for(int i=9; i<headerData.size(); i++) {
 						String GT = variantData.get(i).split(":")[indexGT];
 						String GTCodeString = "?";
-					   	Integer[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
+					   	int[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
 					   	if(GTCode!=null) {
 					   		GTCodeString = String.valueOf(GTCode[0]);
 					   	}
@@ -106,7 +106,7 @@ public class UtilVCF2CSV {
 					for(int i=9; i<headerData.size(); i++) {
 						String GT = variantData.get(i).split(":")[indexGT];
 						String GTCodeString = "?";
-					   	Integer[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
+					   	int[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
 					   	if(GTCode!=null) {
 					   		GTCodeString = String.valueOf(GTCode[1]);
 					   	}
@@ -116,7 +116,7 @@ public class UtilVCF2CSV {
 					for(int i=9; i<headerData.size(); i++) {
 						String GT = variantData.get(i).split(":")[indexGT];
 						String GTCodeString = "?";
-					   	Integer[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
+					   	int[] GTCode = GenotypeEncoder.encodeGTComplex(GT);
 					   	if(GTCode!=null) {
 					   		GTCodeString = String.valueOf(GTCode[2]);
 					   	}

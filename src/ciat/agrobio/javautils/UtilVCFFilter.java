@@ -35,7 +35,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import ciat.agrobio.core.GeneralTools;
-import ciat.agrobio.core.Variant;
+import ciat.agrobio.core.VariantSimple;
 
 @Parameters(commandDescription = "VCFFilter")
 public class UtilVCFFilter {
@@ -94,7 +94,7 @@ public class UtilVCFFilter {
 				}
 				//Variants
 				else {
-					Variant var = new Variant(++varCounter,line.split("\\s+"));
+					VariantSimple var = new VariantSimple(++varCounter,line.split("\\s+"));
 					//Heter filter
 					double heterozygosity = var.calculateHeterozygosity();
 					if(heterozygosity<heterFilter) {
@@ -104,7 +104,7 @@ public class UtilVCFFilter {
 							++varCounterRemain;
 							avrgHet += heterozygosity;
 							avrgMid += misData;
-							System.out.println(var.toString());
+							System.out.println(var.toVariantString());
 						}
 						else {
 							//System.err.println(var.getName()+"\tMiD="+var.calculateMissingData());

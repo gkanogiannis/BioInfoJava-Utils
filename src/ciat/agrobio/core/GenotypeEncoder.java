@@ -26,127 +26,68 @@ import java.util.Map;
 
 public class GenotypeEncoder {
 	
-	private static Map<String, Integer[]> mapComplex;
-	
-	
+	//For diploid
+	//[0]: chromosome1
+	//[1]: chromosome2
+	//[3]: numAlleles
+	private static Map<String, byte[]> map2;
 	static {
-		mapComplex = new HashMap<String, Integer[]>();
-		mapComplex.put("0/0", new Integer[]{1, 0, 0});
-		mapComplex.put("1/1", new Integer[]{0, 0, 1});
-		mapComplex.put("0/1", new Integer[]{0, 1, 0});
-		mapComplex.put("1/0", new Integer[]{0, 1, 0});
-		mapComplex.put("./.", new Integer[]{});
+		map2 = new HashMap<String, byte[]>();
 		
-		mapComplex.put("0|0", new Integer[]{1, 0, 0});
-		mapComplex.put("1|1", new Integer[]{0, 0, 1});
-		mapComplex.put("0|1", new Integer[]{0, 1, 0});
-		mapComplex.put("1|0", new Integer[]{0, 1, 0});
-		mapComplex.put(".|.", new Integer[]{});
+		for(int i=0; i<=7; i++) {
+			for(int j=0; j<=7; j++) {
+				map2.put(i+"/"+j, new byte[] {(byte) (1<<i),(byte) (1<<j), (i>j?(byte)(i+1):(byte)(j+1))});
+				map2.put(i+"|"+j, new byte[] {(byte) (1<<i),(byte) (1<<j), (i>j?(byte)(i+1):(byte)(j+1))});
+			}
+		}
+		map2.put("./.", new byte[]{0,0,0});
+		map2.put(".|.", new byte[]{0,0,0});
 	}
 	
-	/*
-	static {
-		mapComplex = new HashMap<String, Integer[]>();
-		mapComplex.put("0/0", new Integer[]{1, 0, 1});
-		mapComplex.put("1/1", new Integer[]{-1, 0, -1});
-		mapComplex.put("0/1", new Integer[]{0, 1, 0});
-		mapComplex.put("1/0", new Integer[]{0, 1, 0});
-		mapComplex.put("./.", new Integer[]{});
-	}
-	*/
-	
-	public static String genotypeToAlleles(String GT, String Ref, String Alt, boolean mode2) {
-		if(mode2) {
-			if(GT.equals("0/0"))
-				return Ref+"/"+Ref;
-			else if(GT.equals("1/1"))
-				return Alt+"/"+Alt;
-			else if(GT.equals("0/1") || GT.equals("1/0"))
-				return Ref+"/"+Alt;
-			else
-				return "N/N";
+	public static byte[] encodeGT(String GT, byte ploidy) {
+		if(ploidy==2) {
+			byte[] ret =  map2.get(GT);
+			if(ret!=null)
+				return ret;
+			else {
+				return new byte[]{0,0,0};
+			}	
 		}
 		else {
-			if(GT.equals("0/0"))
-				return Ref;
-			else if(GT.equals("1/1"))
-				return Alt;
-			else if(GT.equals("0/1") || GT.equals("1/0"))
-				return Ref+"/"+Alt;
-			else
-				return "N";
+			System.err.println("Ploidy "+ploidy+" is not yet implemented. Exciting");
+			System.exit(ploidy);
 		}
+		return new byte[]{0,0,0};
 	}
 	
-	public static Integer[] encodeGTComplex(String GT) {
-		Integer[] ret =  mapComplex.get(GT);
-		if(ret!=null)
-			return ret;
-		else
-			return new Integer[]{};
+	public static boolean isHet(byte[] encoded, byte ploidy) {
+		if(ploidy==2) {
+			return encoded[0]!=encoded[1];
+		}
+		else {
+			System.err.println("Ploidy "+ploidy+" is not yet implemented. Exciting");
+			System.exit(ploidy);
+		}
+		return false;
 	}
 	
-	
-	public static String encodeGTComplexReverse(Integer[] GT) {
-		try {
-			if(GT==null || GT.length!=3)
-				return "./.";
-			else {
-				if(GT[0]==1 && GT[1]==0 && GT[2]==0) return "0/0";
-				else if(GT[0]==0 && GT[1]==0 && GT[2]==1) return "1/1";
-				else if(GT[0]==0 && GT[1]==1 && GT[2]==0) return "0/1";
-				else return "./.";
-			}
-		}
-		catch (Exception e) {
-			return "./.";
-		}
+	public static boolean isHet(byte dataP1, byte dataP2) {
+		return dataP1!=dataP2;
 	}
 	
-	/*
-	public static String encodeGTComplexReverse(Integer[] GT) {
-		try {
-			if(GT==null || GT.length!=3)
-				return "./.";
-			else {
-				if(GT[0]==1 && GT[1]==0 && GT[2]==1) return "0/0";
-				else if(GT[0]==-1 && GT[1]==0 && GT[2]==-1) return "1/1";
-				else if(GT[0]==0 && GT[1]==1 && GT[2]==0) return "0/1";
-				else return "./.";
-			}
+	public static boolean isMis(byte[] encoded, byte ploidy) {
+		if(ploidy==2) {
+			return encoded[0]==0 && encoded[1]==0;
 		}
-		catch (Exception e) {
-			return "./.";
+		else {
+			System.err.println("Ploidy "+ploidy+" is not yet implemented. Exciting");
+			System.exit(ploidy);
 		}
+		return false;
 	}
-	*/
-	
-	/*
-	public static Double encodeGTSimple(String GT) {
-		try {
-			Integer i1 = Integer.parseInt(GT.split("/")[0]);
-			Integer i2 = Integer.parseInt(GT.split("/")[1]);
-			return (i1+i2)/1.0;
-		} 
-		catch (Exception e) {
-			return -1.0;
-		}
+
+	public static boolean isMis(byte dataP1, byte dataP2) {
+		return dataP1==0 && dataP2==0;
 	}
 	
-	public static String encodeGTSimpleReverse(Double GT) {
-		try {
-			if(GT==0.0)
-				return "0/0";
-			else if(GT==2.0)
-				return "1/1";
-			else if(GT==1.0)
-				return "0/1";
-			else
-				return "./.";
-		} 
-		catch (Exception e) {
-			return "./.";
-		}
-	}
-	*/
 }

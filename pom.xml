@@ -3,8 +3,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.gkanogiannis</groupId>
-	<artifactId>Agrobio_JavaUtils</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<artifactId>BioInfoJavaUtils</artifactId>
+	<version>1.2.4</version>
 
 	<build>
 		<sourceDirectory>src</sourceDirectory>
@@ -26,6 +26,33 @@
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
+					<excludes>
+                    	<exclude>ciat/agrobio/bean/fingerprint/*</exclude>
+                    	<exclude>ciat/agrobio/syngenta2017/*</exclude>
+                    	<exclude>ciat/agrobio/core/CalculateDistancesCOSINE_OLD.java</exclude>
+                    	<exclude>ciat/agrobio/core/GenotypeEncoder_OLD.java</exclude>
+                    	<exclude>ciat/agrobio/core/SampleVariantTools.java</exclude>
+                    	<exclude>ciat/agrobio/core/VariantProcessor_OLD.java</exclude>
+                    	<exclude>ciat/agrobio/core/VariantSimple.java</exclude>     	
+                    	<exclude>ciat/agrobio/io/VCFManager_OLD.java</exclude>              	
+                    	<exclude>ciat/agrobio/javautils/UtilARFFaddTrait.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilARFFClassifyFromWeka.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilDIST2Hist.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2ARFF.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2CSV.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2DIST_OLD.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2SVM.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2TABLE.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCF2TREE_OLD.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFClassifyFromTxtModel.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFFilter.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFKeepSamples.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFKeepVariants.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFNonrelated.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFRemoveClones.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFRemoveSamples.java</exclude>
+                    	<exclude>ciat/agrobio/javautils/UtilVCFsIntersection.java</exclude>
+                	</excludes>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -87,14 +114,32 @@
 			<version>3.0.3</version>
 		</dependency>
 		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.6</version>
+			<groupId>com.beust</groupId>
+			<artifactId>jcommander</artifactId>
+			<version>1.72</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.jfree</groupId>
+		    <artifactId>jfreechart</artifactId>
+		    <version>1.5.3</version>
+		</dependency>
+
+		
+		<!--
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>3.8</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.6</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -107,19 +152,9 @@
 			<version>26.0-jre</version>
 		</dependency>
 		<dependency>
-			<groupId>com.beust</groupId>
-			<artifactId>jcommander</artifactId>
-			<version>1.72</version>
-		</dependency>
-		<dependency>
 			<groupId>com.google.collections</groupId>
 			<artifactId>google-collections</artifactId>
 			<version>1.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-collections4</artifactId>
-			<version>4.2</version>
 		</dependency>
 		<dependency>
 			<groupId>nz.ac.waikato.cms.weka</groupId>
@@ -131,11 +166,6 @@
 			<artifactId>LibLINEAR</artifactId>
 			<version>1.9.7</version>
 		</dependency>
-		<dependency>
-			<groupId>org.jfree</groupId>
-			<artifactId>jfreechart</artifactId>
-			<version>1.5.0</version>
-		</dependency>
-
+		-->
 	</dependencies>
 </project>

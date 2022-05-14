@@ -32,7 +32,13 @@ import java.util.Iterator;
 import java.util.List;
 
 public class VCFIterator<T> implements Iterable<List<T>> {
-	private static final long CHUNK_SIZE = 1024 * 1024 * 1024;
+	private static long CHUNK_SIZE;
+	static {
+		CHUNK_SIZE = Runtime.getRuntime().maxMemory()/32;
+		CHUNK_SIZE = (CHUNK_SIZE/1024)*1024;
+		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
+		System.err.println(CHUNK_SIZE);
+	}
 	private final VCFDecoderInterface<T> decoder;
 	private Iterator<File> files;
 
@@ -76,6 +82,14 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 				}
 				// set next MappedByteBuffer chunk
 				chunkPos += buffer.position();
+				//try {
+					//sun.misc.Cleaner cleaner = ((sun.nio.ch.DirectBuffer) buffer).cleaner();
+					//if (cleaner != null) {
+		                //cleaner.clean();
+		            //}
+				//} 
+				//catch (Exception e) {System.out.println("sun.misc.Cleaner error");}
+				
 				buffer = null;
 				if (entries != null) {
 					return true;

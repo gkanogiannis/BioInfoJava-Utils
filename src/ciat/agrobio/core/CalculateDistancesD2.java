@@ -21,7 +21,6 @@
  */
 package ciat.agrobio.core;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,13 +32,15 @@ import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ciat.agrobio.io.FastaManager;
-import ciat.agrobio.io.SequenceD2;
-import ciat.agrobio.io.SequenceD2Interface;
 import gnu.trove.iterator.TLongIntIterator;
 
 public class CalculateDistancesD2 {
 
 	public CalculateDistancesD2() {
+	}
+	
+	public static void resetCounters(){
+		CalculateD2ChildTask.resetCounters();
 	}
 	
 	public double[][] calculateDistances(int numOfThreads, ConcurrentHashMap<Integer, SequenceD2> seqVectors, 
@@ -101,10 +102,16 @@ class CalculateD2ChildTask extends RecursiveAction {
 	private ConcurrentHashMap<Integer, SequenceD2> seqVectors;
 	private List<String> seqNames;
 	private List<Integer> seqIds;
+	@SuppressWarnings("unused")
 	private FastaManager frm;
 	
 	private double[][] distances;
 	private int row;
+	
+	public static void resetCounters(){
+		sequenceCounter = new AtomicInteger(0);
+		taskCount = new AtomicInteger(0);
+	}
 	
 	public CalculateD2ChildTask(ConcurrentHashMap<Integer, SequenceD2> seqVectors, 
 							    List<String> seqNames, List<Integer> seqIds, FastaManager frm, double[][] distances, int row) {
@@ -118,14 +125,13 @@ class CalculateD2ChildTask extends RecursiveAction {
 
 	@Override
 	protected void compute() {
-		DecimalFormat df = new DecimalFormat("#.############"); 
 		try {
 			SequenceD2 X = seqVectors.get(seqIds.get(row));
 			for (int column=seqNames.size()-1;column>=row;column--) {
 				SequenceD2 Y = seqVectors.get(seqIds.get(column));
 				double d2_measure = DissimilarityMeasuresD2.d2_S_Dissimilarity(X, Y);
 				if(Math.abs(d2_measure) < Double.valueOf("1E-15")) d2_measure=0.0;
-				distances[row][column] = Double.parseDouble(df.format(d2_measure));
+				distances[row][column] = Double.parseDouble(GeneralTools.decimalFormat.format(d2_measure));
 				distances[column][row] = distances[row][column];
 				//System.out.println(Utils.time()+"\td2S for couple ["+seqNames.get(i)+" :: "+seqNames.get(j)+"]="+d2_measure);
 			}

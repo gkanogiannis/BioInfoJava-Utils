@@ -122,8 +122,12 @@ public class SequenceProcessor implements Runnable {
 				SequenceD2 seqVector = sequenceD2;
 				//ReadD2Centroid seqVector = new ReadD2Centroid(read);
 				seqVectors.put(seqVector.getSequenceId(), seqVector);
+				
+				//Clean sequence
+				sequenceD2.clearHeadSeq();
 								
 				System.err.println(sequenceCount.get()+"\t"+seqVector.getShortName());
+				
 				/*
 				System.err.print("\tkmer_Count="+seqVector.getTotalCounts());
 				System.err.print("\tATCG="+seqVector.getTotalATCG());

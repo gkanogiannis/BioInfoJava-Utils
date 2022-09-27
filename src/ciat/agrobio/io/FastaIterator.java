@@ -156,7 +156,7 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 						if (files.hasNext()) {
 							File f = files.next();
 							if(GeneralTools.isGZipped(f)) bis = new BufferedInputStream(new GZIPInputStream(new FileInputStream(f),CHUNK_SIZE));
-							else bis = new BufferedInputStream(new FileInputStream(f));
+							else bis = new BufferedInputStream(new FileInputStream(f),CHUNK_SIZE);
 							chunkPos = -1;
 						} 
 						else return null;

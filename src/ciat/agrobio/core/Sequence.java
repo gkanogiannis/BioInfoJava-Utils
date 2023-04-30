@@ -179,7 +179,7 @@ public class Sequence {
 	public String getName() {
 		if(name==null) {
 			try {
-				name = new String(getHeader()).substring(1).
+				name = new String(getHeader()).substring(1).trim().
 						replaceAll("[^A-Za-z0-9_\\.\\+\\-\\=\\|]", " ").
 						replaceAll("\\s+", " ");
 			} 
@@ -193,7 +193,7 @@ public class Sequence {
 	public String getShortName() {
 		if(shortName==null) {
 			try {
-				shortName = new String(getHeader()).split("\\s+")[0].substring(1).
+				shortName = new String(getHeader()).substring(1).trim().split("\\s+")[0].
 						replaceAll("[^A-Za-z0-9_\\.\\+\\-\\=\\|]", " ").
 						replaceAll("\\s+", " ");
 			} 

@@ -82,6 +82,7 @@ public class SequenceProcessor implements Runnable {
 				SequenceD2 sequenceD2 = null;
 				if(sequence!=null){
 					sequenceD2 = new SequenceD2(sequence);
+					sequenceD2.getName(); sequenceD2.getShortName();
 				}
 				if(sequenceD2==null){
 					if(!frm.hasMore()){
@@ -122,12 +123,12 @@ public class SequenceProcessor implements Runnable {
 				SequenceD2 seqVector = sequenceD2;
 				//ReadD2Centroid seqVector = new ReadD2Centroid(read);
 				seqVectors.put(seqVector.getSequenceId(), seqVector);
-				
-				//Clean sequence
-				sequenceD2.clearHeadSeq();
 								
 				System.err.println(sequenceCount.get()+"\t"+seqVector.getShortName());
 				
+				//Clean sequence
+				sequenceD2.clearHeadSeq();
+
 				/*
 				System.err.print("\tkmer_Count="+seqVector.getTotalCounts());
 				System.err.print("\tATCG="+seqVector.getTotalATCG());

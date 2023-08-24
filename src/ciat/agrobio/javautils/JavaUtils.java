@@ -84,7 +84,7 @@ public class JavaUtils {
 				System.exit(0);
 			}
 			
-			System.err.println( jc.getParsedCommand() + " : " + new Date(gTools.classBuildTimeMillis(utilClass)).toString());
+			System.err.println( jc.getParsedCommand() + " : " + new Date(GeneralTools.classBuildTimeMillis(utilClass)).toString());
 			goMethod.invoke(util);	
 		} 
 		catch (MissingCommandException|ClassNotFoundException e) {

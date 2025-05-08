@@ -24,6 +24,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -66,12 +68,15 @@ public class GeneralTools {
 		}
 	}
 	
-	private static GeneralTools instance = new GeneralTools();
+	private static GeneralTools instance;
 	
 	private GeneralTools() {
 	}
 
 	public static GeneralTools getInstance() {
+		if(instance == null) {
+			instance = new GeneralTools();
+		}
 		return instance;
 	}
 	
@@ -389,9 +394,9 @@ public class GeneralTools {
 		return distancesReordered;
 	}
 	
-	public static Object[] readDistancesSamples(String input) {
+	public static Object[] readDistancesSamples(InputStream input) {
 		try {
-			BufferedReader br = new BufferedReader(new FileReader(input));
+			BufferedReader br = new BufferedReader(new InputStreamReader(input));
 			String line = br.readLine();
 			System.err.println(line);
 			int numOfSamples = Integer.parseInt(line.split("[\\s,\\t]+")[0]);

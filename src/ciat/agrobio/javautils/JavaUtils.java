@@ -33,7 +33,7 @@ import ciat.agrobio.core.GeneralTools;
 
 public class JavaUtils {
 	
-	private GeneralTools gTools = GeneralTools.getInstance();
+	//private final GeneralTools gTools = GeneralTools.getInstance();
 	
 	public void go(String[] args) {
 		JCommander jc = null;

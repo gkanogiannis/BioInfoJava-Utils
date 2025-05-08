@@ -4,8 +4,8 @@ authors:
   - family-names: Gkanogiannis
     given-names: Anestis
     orcid: https://orcid.org/0000-0002-6441-0688
-title: "BioInfoJava-Utils. Various Bioinformatics utils in Java."
-version: 1.0.0
-doi: 10.5281/zenodo.5758275
+title: "A scalable assembly-free variable selection algorithm for biomarker discovery from metagenomes."
+version: 1.13.0
+doi: 10.1186/s12859-016-1186-3
 date-released: 2021-12-03
 url: "https://github.com/gkanogiannis/BioInfoJava-Utils"

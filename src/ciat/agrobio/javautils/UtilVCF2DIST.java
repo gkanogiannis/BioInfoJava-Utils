@@ -57,8 +57,8 @@ public class UtilVCF2DIST {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 	
-	@Parameter(names = { "--ignoremissing", "-m" })
-	private boolean ignoremissing = false;
+	@Parameter(names = { "--ignoreMissing", "-m" })
+	private boolean ignoreMissing = false;
 	
 	@Parameter(names={"--onlyHets", "-h"})
 	private boolean onlyHets = false;
@@ -109,7 +109,7 @@ public class UtilVCF2DIST {
 			//double[][] distances = SampleVariantTools.calculateDistances(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, false);
 			CalculateDistancesCOSINE.resetCounters();
 			CalculateDistancesCOSINE fj = new CalculateDistancesCOSINE();
-			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoremissing);
+			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoreMissing);
 			
 			// Print data
 			@SuppressWarnings("unused")

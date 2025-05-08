@@ -38,7 +38,7 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 		CHUNK_SIZE = Runtime.getRuntime().maxMemory()/32;
 		CHUNK_SIZE = (CHUNK_SIZE/1024)*1024;
 		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
-		if(CHUNK_SIZE > Integer.MAX_VALUE ) CHUNK_SIZE = Integer.MAX_VALUE;
+		if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
 		System.err.println(CHUNK_SIZE);
 	}
 	private final VCFDecoderInterface<T> decoder;

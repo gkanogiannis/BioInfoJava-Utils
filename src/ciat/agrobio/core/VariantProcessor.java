@@ -86,8 +86,9 @@ public class VariantProcessor implements Runnable {
 				}
 				//Process variant data
 				int count = variantCount.incrementAndGet(); 
-				if(count % 50000 == 0){
-					System.err.println(GeneralTools.time()+" VariantProcessor: "+id+"\t"+count);
+				if(count % 1000 == 0){
+					System.err.print("\r"+GeneralTools.time()+" VariantProcessor ("+id+"):\t"+count);
+					System.err.flush();
 				}
 				
 				byte numAlleles=0;
@@ -127,7 +128,7 @@ public class VariantProcessor implements Runnable {
 					}
 				}
 				else {
-					System.err.println(" Ploidy "+ploidy+" is not yet supported.");
+					System.err.println("Ploidy "+ploidy+" is not yet supported.");
 					System.exit(ploidy);
 				}
 				variant.setNumAlleles(numAlleles);

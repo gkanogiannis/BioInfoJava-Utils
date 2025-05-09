@@ -194,7 +194,11 @@ class CalculateDistancesChildTask extends RecursiveAction {
 				distances[column][row] = distances[row][column];
 			}
 			int count = sampleCounter.incrementAndGet();
-			if(count % 50 == 0) System.err.println(GeneralTools.time()+" CalculateDistancesChildTask("+id+"): "+"\t"+count);
+			if(count % 10 == 0) {
+				System.err.print("\r"+GeneralTools.time()+" CalculateDistancesChildTask ("+id+"):\t"+count);
+				System.err.flush();
+			}
+
 		} 
 		catch (Exception e) {
 			e.printStackTrace();

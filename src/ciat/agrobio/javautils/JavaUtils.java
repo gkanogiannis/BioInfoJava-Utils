@@ -85,7 +85,7 @@ public class JavaUtils {
 			}
 			
 			System.err.println( jc.getParsedCommand() + " : " + new Date(GeneralTools.classBuildTimeMillis(utilClass)).toString());
-			goMethod.invoke(util);	
+			goMethod.invoke(util);
 		} 
 		catch (MissingCommandException|ClassNotFoundException e) {
 			System.err.println("Invalid JavaUtil selection!");

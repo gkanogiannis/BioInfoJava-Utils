@@ -44,6 +44,9 @@ public class UtilDIST2TREE {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
+	@Parameter(names = "--verbose")
+	private boolean verbose = false;
+
 	@Parameter(description = "Input_File", required = true)
 	private String inputFileName;
 	
@@ -55,8 +58,8 @@ public class UtilDIST2TREE {
 		try {
 			//int cpus = Runtime.getRuntime().availableProcessors();
 			//int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
-			//System.err.println("cpus=" + cpus);
-			//System.err.println("using=" + usingThreads);
+			//if(verbose) System.err.println("cpus=" + cpus);
+			//if(verbose) System.err.println("using=" + usingThreads);
 
 			//Read distances matrix and sample names
 			Object[] data;

@@ -41,16 +41,19 @@ public class VariantProcessor implements Runnable {
 	
 	//private ConcurrentSkipListSet<String> variantNames;
 	
+	private boolean verbose = false;
+
 	public static void resetCounters(){
 		variantCount = new AtomicInteger(0);
 		taskCount = new AtomicInteger(0);
 	}
 	
-	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
+	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
 		this.vm = vm;
 		this.vcfm = vcfm;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
+		this.verbose = verbose;
 	}
 	
 	public static AtomicInteger getVariantCount() {
@@ -86,7 +89,7 @@ public class VariantProcessor implements Runnable {
 				}
 				//Process variant data
 				int count = variantCount.incrementAndGet(); 
-				if(count % 1000 == 0){
+				if(count % 1000 == 0 && verbose){
 					System.err.print("\r"+GeneralTools.time()+" VariantProcessor ("+id+"):\t"+count);
 					System.err.flush();
 				}

@@ -33,7 +33,10 @@ import ciat.agrobio.io.VCFManager;
 
 public class CalculateDistancesCOSINE {
 
-	public CalculateDistancesCOSINE() {
+	public static boolean verbose = false;
+
+	public CalculateDistancesCOSINE(boolean verbose) {
+		CalculateDistancesCOSINE.verbose = verbose;
 	}
 	
 	public static void resetCounters(){
@@ -194,7 +197,7 @@ class CalculateDistancesChildTask extends RecursiveAction {
 				distances[column][row] = distances[row][column];
 			}
 			int count = sampleCounter.incrementAndGet();
-			if(count % 10 == 0) {
+			if(count % 10 == 0 && CalculateDistancesCOSINE.verbose) {
 				System.err.print("\r"+GeneralTools.time()+" CalculateDistancesChildTask ("+id+"):\t"+count);
 				System.err.flush();
 			}

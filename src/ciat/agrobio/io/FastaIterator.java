@@ -41,8 +41,9 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 		CHUNK_SIZE = (int)Runtime.getRuntime().maxMemory()/32;
 		CHUNK_SIZE = (CHUNK_SIZE/1024)*1024;
 		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
-		//CHUNK_SIZE=1024;
-		System.err.println("CHUNK_SIZE="+CHUNK_SIZE);
+		if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
+		System.err.println("Max RAM: " + Runtime.getRuntime().maxMemory());
+		System.err.println("IO Chunk: " + CHUNK_SIZE);
 		buffer_static = ByteBuffer.allocate(CHUNK_SIZE);
 	}
 	
@@ -106,7 +107,8 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 						last_round = true;
 						if(entries.isEmpty() && pos>0) {//fasta header too long, increase chunk
 							CHUNK_SIZE = 2*CHUNK_SIZE;
-							System.err.println("CHUNK_SIZE="+CHUNK_SIZE);
+							if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
+							System.err.println("IO Chunk: " + CHUNK_SIZE);
 							ByteBuffer temp = ByteBuffer.allocate(CHUNK_SIZE);
 							buffer_static.position(0);
 							temp.position(CHUNK_SIZE/2);

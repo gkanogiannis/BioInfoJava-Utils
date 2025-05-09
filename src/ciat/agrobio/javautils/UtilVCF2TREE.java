@@ -51,6 +51,9 @@ public class UtilVCF2TREE {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
+	@Parameter(names = "--verbose")
+	private boolean verbose = false;
+
 	@Parameter(description = "Input_File", required = true)
 	private String inputFileName;
 	
@@ -70,13 +73,13 @@ public class UtilVCF2TREE {
 		try {
 			int cpus = Runtime.getRuntime().availableProcessors();
 			int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
-			System.err.println("cpus=" + cpus);
-			System.err.println("using=" + usingThreads);
+			if(verbose) System.err.println("cpus=" + cpus);
+			if(verbose) System.err.println("using=" + usingThreads);
 
 			CountDownLatch startSignal = new CountDownLatch(1);
 			CountDownLatch doneSignal = new CountDownLatch(usingThreads + 1);
 
-			//System.err.println(GeneralTools.time() + " START ");
+			//if(verbose) System.err.println(GeneralTools.time() + " START ");
 
 			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
 
@@ -88,7 +91,7 @@ public class UtilVCF2TREE {
 			VariantProcessor.resetCounters();
 			// Starting threads
 			for (int i = 0; i < usingThreads; i++) {
-				VariantProcessor vp = new VariantProcessor(vm, vcfm, startSignal, doneSignal);
+				VariantProcessor vp = new VariantProcessor(vm, vcfm, startSignal, doneSignal, verbose);
 				variantProcessors.put(vp.getId(), vp);
 				pool.execute(vp);
 			}
@@ -103,12 +106,12 @@ public class UtilVCF2TREE {
 				sampleNames.add(new String(vcfm.getHeaderData()[i]));
 			}
 
-			System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
+			if(verbose) System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
 
 			// Calculate distances
 			//double[][] distances = SampleVariantTools.calculateDistances(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, false);
 			CalculateDistancesCOSINE.resetCounters();
-			CalculateDistancesCOSINE fj = new CalculateDistancesCOSINE();
+			CalculateDistancesCOSINE fj = new CalculateDistancesCOSINE(verbose);
 			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoreMissing);
 			
 			//HCluster tree

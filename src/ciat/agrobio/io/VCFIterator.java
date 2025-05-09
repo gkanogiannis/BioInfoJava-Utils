@@ -39,7 +39,8 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 		CHUNK_SIZE = (CHUNK_SIZE/1024)*1024;
 		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
 		if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
-		System.err.println(CHUNK_SIZE);
+		System.err.println("Max RAM: " + Runtime.getRuntime().maxMemory());
+		System.err.println("IO Chunk: " + CHUNK_SIZE);
 	}
 	private final VCFDecoderInterface<T> decoder;
 	private Iterator<File> files;

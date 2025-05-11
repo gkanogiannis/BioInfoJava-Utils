@@ -34,6 +34,7 @@ public class VCFDecoder implements VCFDecoderInterface<byte[][]> {
 	public VCFDecoder() {
 	}
 
+    @Override
 	public byte[][] decode(ByteBuffer buffer) {
 		int lineStartPos = buffer.position();
 		int limit = buffer.limit();
@@ -133,10 +134,16 @@ public class VCFDecoder implements VCFDecoderInterface<byte[][]> {
 		bytes = null;
 		return ret;
 	}
+
+    @Override
+    public byte[][] decode(String line) {
+        return splitInTabs(line.getBytes());
+    }
 }
 
 interface VCFDecoderInterface<T> {
 
 	public T decode(ByteBuffer buffer);
 
+	public T decode(String line);
 }

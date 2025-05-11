@@ -40,14 +40,16 @@ public class VCFManager implements Runnable{
 	private AtomicInteger currVariantId = new AtomicInteger(0);
 	
 	private VariantManager vm = null;
-	private String inputFileName = null;
+	private List<String> inputFileNames = null;
 	private boolean done = false;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
+
+	private boolean useMappedBuffer = false;
 	
-	public VCFManager(VariantManager vm, String inputFileName, CountDownLatch startSignal, CountDownLatch doneSignal) {
+	public VCFManager(VariantManager vm, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal) {
 		this.vm = vm;
-		this.inputFileName = inputFileName;
+		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
 	
@@ -73,70 +75,107 @@ public class VCFManager implements Runnable{
 			
 		    System.err.println(GeneralTools.time()+" VCFManager: START READ");
 		    
-		    List<File> inputFiles = new ArrayList<File>();
-		    inputFiles.add(new File(inputFileName).getCanonicalFile());
-		    
-		    //Check if files exist
-		    for(File f : inputFiles){
-		    	if(!f.exists() || !f.canRead()){
-		    		System.err.println("\tERROR : File "+f+"\n\tdoes not exist ot cannot be read. Exiting.");
-		    		System.exit(1);
-		    	}
-		    }
-		    
 		    VCFDecoder decoder = new VCFDecoder();
 		    //byte[][] line : split at tabs, byte[] is a string between tabs
-		    VCFIterator<byte[][]> iterator = VCFIterator.create(decoder, inputFiles);
-		    for (List<byte[][]> chunk : iterator) {
-		    	//System.err.println(GeneralTools.time()+" VCFManager: Chunk with "+chunk.size()+" lines.");
-		    	//for(byte[][] line : chunk) {
-		    	for(int i=0; i<chunk.size(); i++) {
-		    		byte[][] line = chunk.get(i);
-		    		if(line[0][0]=='#' && line[0][1]=='#') {
-		    			commentData.add(line[0]);
-		    			continue;
-		    		}
-		    		else if(line[0][0]=='#') {
-		    			headerData = line;
-		    			vm.setNumSamples(headerData.length - 9);
-		    		}
-		    		else if(line.length<10) {
-		    			continue;
-		    		}
-		    		else {
-		    			Variant variant = new Variant(currVariantId.incrementAndGet(), line);
-		    			
-		    			if(vm.getPloidy()<=0) {
-		    				String format = variant.getFormat();
-		    				int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
-		    				String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
-		    				if(GT.contains("/")) {
-		    					vm.setPloidy((byte)GT.split("/").length);
-		    				}
-		    				else if(GT.contains("|")) {
-		    					vm.setPloidy((byte)GT.split("\\|").length);
-		    				}
-		    				else {
-								vm.setPloidy((byte)1);
-		    					//System.err.println("Cannot understand GT field.");
-		    					//System.exit(vm.getPloidy());
-		    				}
+			if(useMappedBuffer){
+				VCFIterator<byte[][]> iterator = VCFIterator.create(decoder, inputFileNames);
+				for (List<byte[][]> chunk : iterator) {
+					//System.err.println(GeneralTools.time()+" VCFManager: Chunk with "+chunk.size()+" lines.");
+					//for(byte[][] line : chunk) {
+					for(int i=0; i<chunk.size(); i++) {
+						byte[][] line = chunk.get(i);
+						if(line[0][0]=='#' && line[0][1]=='#') {
+							commentData.add(line[0]);
+							continue;
 						}
-		    			
-		    			while(!vm.putVariantRaw(variant)) {
-		    				//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
-		    				//currVariantId.decrementAndGet();
-		    				//i--;
-		    				//variant = null;
-		    				TimeUnit.MILLISECONDS.sleep(500);
-		    			}
-		    			
-		    			line = null;
-		    		}
-		    	}
-		    	chunk.clear();
-		    	chunk = null;
-		    }
+						else if(line[0][0]=='#') {
+							headerData = line;
+							vm.setNumSamples(headerData.length - 9);
+						}
+						else if(line.length<10) {
+							continue;
+						}
+						else {
+							Variant variant = new Variant(currVariantId.incrementAndGet(), line);
+							
+							if(vm.getPloidy()<=0) {
+								String format = variant.getFormat();
+								int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
+								String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
+								if(GT.contains("/")) {
+									vm.setPloidy((byte)GT.split("/").length);
+								}
+								else if(GT.contains("|")) {
+									vm.setPloidy((byte)GT.split("\\|").length);
+								}
+								else {
+									vm.setPloidy((byte)1);
+									//System.err.println("Cannot understand GT field.");
+									//System.exit(vm.getPloidy());
+								}
+							}
+							
+							while(!vm.putVariantRaw(variant)) {
+								//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
+								//currVariantId.decrementAndGet();
+								//i--;
+								//variant = null;
+								TimeUnit.MILLISECONDS.sleep(500);
+							}
+							
+							line = null;
+						}
+					}
+					chunk.clear();
+					chunk = null;
+				}
+			}
+			else {
+				VCFLineIterator<byte[][]> iterator = new VCFLineIterator(decoder, inputFileNames);
+				for (byte[][] line : iterator) {
+					if(line[0][0]=='#' && line[0][1]=='#') {
+						commentData.add(line[0]);
+						continue;
+					}
+					else if(line[0][0]=='#') {
+						headerData = line;
+						vm.setNumSamples(headerData.length - 9);
+					}
+					else if(line.length<10) {
+						continue;
+					}
+					else {
+						Variant variant = new Variant(currVariantId.incrementAndGet(), line);
+						
+						if(vm.getPloidy()<=0) {
+							String format = variant.getFormat();
+							int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
+							String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
+							if(GT.contains("/")) {
+								vm.setPloidy((byte)GT.split("/").length);
+							}
+							else if(GT.contains("|")) {
+								vm.setPloidy((byte)GT.split("\\|").length);
+							}
+							else {
+								vm.setPloidy((byte)1);
+								//System.err.println("Cannot understand GT field.");
+								//System.exit(vm.getPloidy());
+							}
+						}
+							
+						while(!vm.putVariantRaw(variant)) {
+							//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
+							//currVariantId.decrementAndGet();
+							//i--;
+							//variant = null;
+							TimeUnit.MILLISECONDS.sleep(500);
+						}
+						
+						line = null;
+					}	
+				}				
+			}
 		    
 			System.err.println(GeneralTools.time()+" VCFManager: END READ");
 			vm.setNumVariants(this.currVariantId.get());

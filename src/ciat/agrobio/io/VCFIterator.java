@@ -43,25 +43,26 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 		System.err.println("IO Chunk: " + CHUNK_SIZE);
 	}
 	private final VCFDecoderInterface<T> decoder;
-	private Iterator<File> files;
+	private Iterator<String> inputPaths;
 
-	private VCFIterator(VCFDecoderInterface<T> decoder, File... files) {
-		this(decoder, Arrays.asList(files));
+	private VCFIterator(VCFDecoderInterface<T> decoder, String... inputPaths) {
+		this(decoder, Arrays.asList(inputPaths));
 	}
 
-	private VCFIterator(VCFDecoderInterface<T> decoder, List<File> files) {
-		this.files = files.iterator();
+	private VCFIterator(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
+		this.inputPaths = inputPaths.iterator();
 		this.decoder = decoder;
 	}
 
-	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, List<File> files) {
-		return new VCFIterator<T>(decoder, files);
+	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
+		return new VCFIterator<T>(decoder, inputPaths);
 	}
 
-	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, File... files) {
-		return new VCFIterator<T>(decoder, files);
+	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, String... inputPaths) {
+		return new VCFIterator<T>(decoder, inputPaths);
 	}
 
+    @Override
 	public Iterator<List<T>> iterator() {
 		return new Iterator<List<T>>() {
 			private List<T> entries;
@@ -70,6 +71,7 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 			private FileChannel channel;
 			private final ByteOrder byteOrder = java.nio.ByteOrder.nativeOrder();
 
+            @Override
 			public boolean hasNext() {
 				if (buffer == null || !buffer.hasRemaining()) {
 					buffer = nextBuffer(chunkPos);
@@ -117,8 +119,8 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 							channel.close();
 							channel = null;
 						}
-						if (files.hasNext()) {
-							File file = files.next();
+						if (inputPaths.hasNext()) {
+							File file = new File(inputPaths.next());
 							channel = new RandomAccessFile(file, "r").getChannel();
 							chunkPos = 0;
 							position = 0;
@@ -141,12 +143,14 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 				}
 			}
 
+			@Override
 			public List<T> next() {
 				List<T> res = entries;
 				entries = null;
 				return res;
 			}
 
+			@Override
 			public void remove() {
 				throw new UnsupportedOperationException();
 			}

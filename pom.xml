@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
-    <version>1.13.0</version>
+    <version>1.13.2</version>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
@@ -109,24 +109,18 @@
                 <version>3.8.1</version>
                 <executions>
                     <execution>
-                        <id>copy</id>
+                        <id>copy-dependencies</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>copy</goal>
+                            <goal>copy-dependencies</goal>
                         </goals>
                     </execution>
                 </executions>
                 <configuration>
-                    <artifactItems>
-                        <artifactItem>
-                            <groupId>com.gkanogiannis</groupId>
-                            <artifactId>BioInfoJavaUtils</artifactId>
-                            <version>1.13.0</version>
-                            <type>jar</type>
-                            <overWrite>true</overWrite>
-                            <outputDirectory>${basedir}/bin</outputDirectory>
-                        </artifactItem>
-                    </artifactItems>
+                    <outputDirectory>${basedir}/bin</outputDirectory>
+                    <overWriteReleases>true</overWriteReleases>
+                    <overWriteSnapshots>true</overWriteSnapshots>
+                    <overWriteIfNewer>true</overWriteIfNewer>
                 </configuration>
             </plugin>
         </plugins>

@@ -50,12 +50,16 @@ public class FastaManager implements Runnable{
 	private boolean done = false;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
+
+	private boolean useMappedBuffer = false;
 	
-	public FastaManager(boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal) {
+	public FastaManager(boolean isFastq, boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean useMappedBuffer) {
+		this.isFastq = isFastq;
 		this.keepQualities = keepQualities;
 		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
+		this.useMappedBuffer = useMappedBuffer;
 		
 		this.sequences = new LinkedBlockingQueue<Sequence>();
 		this.staticSequences = new ConcurrentHashMap<Integer,Sequence>();
@@ -146,95 +150,27 @@ public class FastaManager implements Runnable{
 		try{
 			done = false;
 			
-		    System.err.println(GeneralTools.time()+" FastaManager: START READ");
+		    System.err.println(GeneralTools.time()+" FastaManager: START READ\tStreaming:"+(!useMappedBuffer));
 		    startSignal.countDown();
 		    
-		    List<File> inputFiles = new ArrayList<File>();
-		    for(String inputFileName : inputFileNames){
-		    	inputFileName = inputFileName.trim();
-		    	if( inputFileName.contains(".fastq") || inputFileName.contains(".fq")) isFastq = true;
-		    	else if( inputFileName.contains(".fasta") || inputFileName.contains(".fa")) isFastq = false;
-		    	File f = new File(inputFileName);
-		    	if(!f.exists() || !f.canRead()){
-		    		System.err.println("\tERROR : File "+f+"\n\tdoes not exist ot cannot be read. Exiting.");
-		    		System.exit(1);
-		    	}
-		    	inputFiles.add(f.getCanonicalFile());
-		    }
-		    
-		    //Get list of lines of full reads (reads_chunk) from the fasta/fastq file (possibly multiline)
-		    FastaIterator<byte[]> iterator = FastaIterator.create(inputFiles);
-		    for (List<byte[]> reads_chunk : iterator) {
-		    	if(reads_chunk!=null) {
-		    		System.err.println(GeneralTools.time()+" FastaManager: Chunk with "+reads_chunk.size()+" lines.");
-			    	boolean on_qual = false;
-		    		byte[] header = null;
-		    		ArrayList<byte[]> seq = new ArrayList<byte[]>();
-		    		ArrayList<byte[]> qual = new ArrayList<byte[]>();
-			    	
-			    	//FASTA
-			    	if(!isFastq) {
-			    		for(byte[] line : reads_chunk) {
-			    			//skip empty lines
-			    			if(line.length==0) continue;
-			    			//line is fasta header
-			    			else if(line[0]=='>') {
-			    				//Add the previous read
-			    				if(!seq.isEmpty()) {
-			    					addSequence(header, GeneralTools.concat(seq));
-			    					seq.clear();
-			    				}
-			    				header = line;
-			    			}
-			    			//line is fasta sequence part
-			    			else seq.add(line);
-			    		}
-			    		//Add last read
-			    		if(!seq.isEmpty()) {
-			    			addSequence(header, GeneralTools.concat(seq));
-	    					seq.clear();
-	    				}
-			    	}
-			    	
-			    	//FASTQ
-			    	else {
-			    		for(byte[] line : reads_chunk) {
-			    			//skip empty lines
-			    			if(line.length==0) continue;
-			    			//line is fastq header
-			    			else if(line[0]=='@') {
-			    				//Add the previous read
-			    				if(!seq.isEmpty() && !qual.isEmpty()) {
-			    					if(keepQualities) addSequence(header, GeneralTools.concat(seq), GeneralTools.concat(qual));
-			    					else addSequence(header, GeneralTools.concat(seq));
-			    					seq.clear();
-			    					qual.clear();
-			    					on_qual = false;
-			    				}
-			    				header = line;
-			    			}
-			    			//we are on the qualities
-			    			else if(line[0]=='+') on_qual = true;
-			    			//line is fasta quality part
-			    			else if(on_qual) qual.add(line);
-			    			//line is fasta sequence part
-			    			else seq.add(line);
-			    		}
-			    		//Add last read
-			    		if(!seq.isEmpty() && !qual.isEmpty()) {
-	    					if(keepQualities) addSequence(header, GeneralTools.concat(seq), GeneralTools.concat(qual));
-	    					else addSequence(header, GeneralTools.concat(seq));
-	    					seq.clear();
-	    					qual.clear();
-	    				}
-			    	}
-		    	}
-		    }
+			//Get list of lines of full reads (reads_chunk) from the fasta/fastq file (possibly multiline)
+			Iterable<List<byte[]>> iterator;
+			if(useMappedBuffer){
+				iterator = new FastaIterator<>(inputFileNames);
+			}
+			else {
+				iterator = new FastaStreamingIterator(inputFileNames);
+			}
+			for (List<byte[]> reads_chunk : iterator) {
+				if(reads_chunk!=null) {
+					//System.err.println(GeneralTools.time()+" FastaManager: Chunk with "+reads_chunk.size()+" lines.");
+					processReadLines(reads_chunk);
+				}
+			}
 		    
 			System.err.println(GeneralTools.time()+" FastaManager: END READ");
 			System.err.println(GeneralTools.time()+" FastaManager: "+(isFastq?"FASTQ":"FASTA"));
 			done = true;
-			//startSignal.countDown();
 			doneSignal.countDown();
 		}
 		catch(Exception e){
@@ -243,4 +179,72 @@ public class FastaManager implements Runnable{
 		}
 	}
 
+	private void processReadLines(List<byte[]> reads_chunk) {
+		try {
+			boolean on_qual = false;
+			byte[] header = null;
+			ArrayList<byte[]> seq = new ArrayList<byte[]>();
+			ArrayList<byte[]> qual = new ArrayList<byte[]>();
+			
+			//FASTA
+			if(!isFastq) {
+				for(byte[] line : reads_chunk) {
+					//skip empty lines
+					if(line.length==0) continue;
+					//line is fasta header
+					else if(line[0]=='>') {
+						//Add the previous read
+						if(!seq.isEmpty()) {
+							addSequence(header, GeneralTools.concat(seq));
+							seq.clear();
+						}
+						header = line;
+					}
+					//line is fasta sequence part
+					else seq.add(line);
+				}
+				//Add last read
+				if(!seq.isEmpty()) {
+					addSequence(header, GeneralTools.concat(seq));
+					seq.clear();
+				}
+			}
+			
+			//FASTQ
+			else {
+				for(byte[] line : reads_chunk) {
+					//skip empty lines
+					if(line.length==0) continue;
+					//line is fastq header
+					else if(line[0]=='@') {
+						//Add the previous read
+						if(!seq.isEmpty() && !qual.isEmpty()) {
+							if(keepQualities) addSequence(header, GeneralTools.concat(seq), GeneralTools.concat(qual));
+							else addSequence(header, GeneralTools.concat(seq));
+							seq.clear();
+							qual.clear();
+							on_qual = false;
+						}
+						header = line;
+					}
+					//we are on the qualities
+					else if(line[0]=='+') on_qual = true;
+					//line is fasta quality part
+					else if(on_qual) qual.add(line);
+					//line is fasta sequence part
+					else seq.add(line);
+				}
+				//Add last read
+				if(!seq.isEmpty() && !qual.isEmpty()) {
+					if(keepQualities) addSequence(header, GeneralTools.concat(seq), GeneralTools.concat(qual));
+					else addSequence(header, GeneralTools.concat(seq));
+					seq.clear();
+					qual.clear();
+				}
+			}
+		} 
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }

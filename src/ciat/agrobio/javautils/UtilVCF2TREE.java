@@ -72,6 +72,9 @@ public class UtilVCF2TREE {
 	@Parameter(names={"--ignoreHets", "-g"})
 	private boolean ignoreHets = false;
 
+	@Parameter(names={"--useMappedBuffer"}, description="Use MappedByteBuffer for reading input files. Not compatible with piped input.")
+	private boolean useMappedBuffer = false;
+
 	public void go() {
 		try {
 			// Merge all VCF inputs into one list
@@ -98,7 +101,7 @@ public class UtilVCF2TREE {
 
 			Map<Integer, VariantProcessor> variantProcessors = new HashMap<Integer, VariantProcessor>();
 			VariantManager vm = new VariantManager();
-			VCFManager vcfm = new VCFManager(vm, inputFileNames, startSignal, doneSignal);
+			VCFManager vcfm = new VCFManager(vm, inputFileNames, startSignal, doneSignal, useMappedBuffer);
 			pool.execute(vcfm);
 
 			VariantProcessor.resetCounters();

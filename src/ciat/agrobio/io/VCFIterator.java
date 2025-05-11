@@ -40,26 +40,19 @@ public class VCFIterator<T> implements Iterable<List<T>> {
 		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
 		if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
 		System.err.println("Max RAM: " + Runtime.getRuntime().maxMemory());
+		System.err.println("Using MappedByteBuffer");
 		System.err.println("IO Chunk: " + CHUNK_SIZE);
 	}
 	private final VCFDecoderInterface<T> decoder;
 	private Iterator<String> inputPaths;
 
-	private VCFIterator(VCFDecoderInterface<T> decoder, String... inputPaths) {
+	public VCFIterator(VCFDecoderInterface<T> decoder, String... inputPaths) {
 		this(decoder, Arrays.asList(inputPaths));
 	}
 
-	private VCFIterator(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
+	public VCFIterator(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
 		this.inputPaths = inputPaths.iterator();
 		this.decoder = decoder;
-	}
-
-	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
-		return new VCFIterator<T>(decoder, inputPaths);
-	}
-
-	public static <T> VCFIterator<T> create(VCFDecoderInterface<T> decoder, String... inputPaths) {
-		return new VCFIterator<T>(decoder, inputPaths);
 	}
 
     @Override

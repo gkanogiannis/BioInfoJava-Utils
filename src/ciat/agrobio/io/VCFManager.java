@@ -21,7 +21,6 @@
  */
 package ciat.agrobio.io;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,11 +46,12 @@ public class VCFManager implements Runnable{
 
 	private boolean useMappedBuffer = false;
 	
-	public VCFManager(VariantManager vm, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal) {
+	public VCFManager(VariantManager vm, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean useMappedBuffer) {
 		this.vm = vm;
 		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
+		this.useMappedBuffer = useMappedBuffer;
 	
 		this.commentData = new ArrayList<byte[]>();
 	}
@@ -73,107 +73,27 @@ public class VCFManager implements Runnable{
 			done = false;
 			startSignal.countDown();
 			
-		    System.err.println(GeneralTools.time()+" VCFManager: START READ");
+		    System.err.println(GeneralTools.time()+" VCFManager: START READ\tStreaming:"+(!useMappedBuffer));
 		    
 		    VCFDecoder decoder = new VCFDecoder();
 		    //byte[][] line : split at tabs, byte[] is a string between tabs
 			if(useMappedBuffer){
-				VCFIterator<byte[][]> iterator = VCFIterator.create(decoder, inputFileNames);
+				VCFIterator<byte[][]> iterator = new VCFIterator<>(decoder, inputFileNames);
 				for (List<byte[][]> chunk : iterator) {
 					//System.err.println(GeneralTools.time()+" VCFManager: Chunk with "+chunk.size()+" lines.");
 					//for(byte[][] line : chunk) {
 					for(int i=0; i<chunk.size(); i++) {
 						byte[][] line = chunk.get(i);
-						if(line[0][0]=='#' && line[0][1]=='#') {
-							commentData.add(line[0]);
-							continue;
-						}
-						else if(line[0][0]=='#') {
-							headerData = line;
-							vm.setNumSamples(headerData.length - 9);
-						}
-						else if(line.length<10) {
-							continue;
-						}
-						else {
-							Variant variant = new Variant(currVariantId.incrementAndGet(), line);
-							
-							if(vm.getPloidy()<=0) {
-								String format = variant.getFormat();
-								int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
-								String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
-								if(GT.contains("/")) {
-									vm.setPloidy((byte)GT.split("/").length);
-								}
-								else if(GT.contains("|")) {
-									vm.setPloidy((byte)GT.split("\\|").length);
-								}
-								else {
-									vm.setPloidy((byte)1);
-									//System.err.println("Cannot understand GT field.");
-									//System.exit(vm.getPloidy());
-								}
-							}
-							
-							while(!vm.putVariantRaw(variant)) {
-								//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
-								//currVariantId.decrementAndGet();
-								//i--;
-								//variant = null;
-								TimeUnit.MILLISECONDS.sleep(500);
-							}
-							
-							line = null;
-						}
+						processVariantLine(line);
 					}
 					chunk.clear();
 					chunk = null;
 				}
 			}
 			else {
-				VCFLineIterator<byte[][]> iterator = new VCFLineIterator(decoder, inputFileNames);
+				VCFStreamingIterator<byte[][]> iterator = new VCFStreamingIterator<>(decoder, inputFileNames);
 				for (byte[][] line : iterator) {
-					if(line[0][0]=='#' && line[0][1]=='#') {
-						commentData.add(line[0]);
-						continue;
-					}
-					else if(line[0][0]=='#') {
-						headerData = line;
-						vm.setNumSamples(headerData.length - 9);
-					}
-					else if(line.length<10) {
-						continue;
-					}
-					else {
-						Variant variant = new Variant(currVariantId.incrementAndGet(), line);
-						
-						if(vm.getPloidy()<=0) {
-							String format = variant.getFormat();
-							int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
-							String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
-							if(GT.contains("/")) {
-								vm.setPloidy((byte)GT.split("/").length);
-							}
-							else if(GT.contains("|")) {
-								vm.setPloidy((byte)GT.split("\\|").length);
-							}
-							else {
-								vm.setPloidy((byte)1);
-								//System.err.println("Cannot understand GT field.");
-								//System.exit(vm.getPloidy());
-							}
-						}
-							
-						while(!vm.putVariantRaw(variant)) {
-							//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
-							//currVariantId.decrementAndGet();
-							//i--;
-							//variant = null;
-							TimeUnit.MILLISECONDS.sleep(500);
-						}
-						
-						line = null;
-					}	
+					processVariantLine(line);	
 				}				
 			}
 		    
@@ -185,6 +105,51 @@ public class VCFManager implements Runnable{
 		catch(Exception e){
 			e.printStackTrace();
 			System.exit(0);
+		}
+	}
+
+	private void processVariantLine(byte[][] line) {
+		try {
+			if(line[0][0]=='#' && line[0][1]=='#') {
+				commentData.add(line[0]);
+			}
+			else if(line[0][0]=='#') {
+				headerData = line;
+				vm.setNumSamples(headerData.length - 9);
+			}
+			else if(line.length>=10) {
+				Variant variant = new Variant(currVariantId.incrementAndGet(), line);
+				
+				if(vm.getPloidy()<=0) {
+					String format = variant.getFormat();
+					int indexGT = Arrays.asList(format.split(":")).indexOf("GT");
+					String GT = new String(variant.getDataRaw()[9]).split(":")[indexGT];
+					if(GT.contains("/")) {
+						vm.setPloidy((byte)GT.split("/").length);
+					}
+					else if(GT.contains("|")) {
+						vm.setPloidy((byte)GT.split("\\|").length);
+					}
+					else {
+						vm.setPloidy((byte)1);
+						//System.err.println("Cannot understand GT field.");
+						//System.exit(vm.getPloidy());
+					}
+				}
+					
+				while(!vm.putVariantRaw(variant)) {
+					//System.err.println(" VCFManager: Error in inserting "+currVariantId.get()+" variant.");
+					//currVariantId.decrementAndGet();
+					//i--;
+					//variant = null;
+					TimeUnit.MILLISECONDS.sleep(500);
+				}
+
+				line = null;
+			}
+		} 
+		catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 

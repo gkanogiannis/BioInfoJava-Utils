@@ -43,26 +43,19 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
 		if(CHUNK_SIZE > Integer.MAX_VALUE) CHUNK_SIZE = Integer.MAX_VALUE;
 		System.err.println("Max RAM: " + Runtime.getRuntime().maxMemory());
+		System.err.println("Using MappedByteBuffer");
 		System.err.println("IO Chunk: " + CHUNK_SIZE);
 		buffer_static = ByteBuffer.allocate(CHUNK_SIZE);
 	}
 	
-	private Iterator<File> files;
+	private Iterator<String> inputPaths;
 
-	private FastaIterator(File... files) {
-		this(Arrays.asList(files));
+	public FastaIterator(String... inputPaths) {
+		this(Arrays.asList(inputPaths));
 	}
 
-	private FastaIterator(List<File> files) {
-		this.files = files.iterator();
-	}
-
-	public static <T> FastaIterator<T> create(List<File> files) {
-		return new FastaIterator<T>(files);
-	}
-
-	public static <T> FastaIterator<T> create(File... files) {
-		return new FastaIterator<T>(files);
+	public FastaIterator(List<String> inputPaths) {
+		this.inputPaths = inputPaths.iterator();
 	}
 
 	public Iterator<List<byte[]>> iterator() {
@@ -155,10 +148,10 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 			private ByteBuffer nextBuffer() {
 				try {
 					if (bis == null) {
-						if (files.hasNext()) {
-							File f = files.next();
-							if(GeneralTools.isGZipped(f)) bis = new BufferedInputStream(new GZIPInputStream(new FileInputStream(f),CHUNK_SIZE));
-							else bis = new BufferedInputStream(new FileInputStream(f),CHUNK_SIZE);
+						if (inputPaths.hasNext()) {
+							File file = new File(inputPaths.next());
+							if(GeneralTools.isGZipped(file)) bis = new BufferedInputStream(new GZIPInputStream(new FileInputStream(file),CHUNK_SIZE));
+							else bis = new BufferedInputStream(new FileInputStream(file),CHUNK_SIZE);
 							chunkPos = -1;
 						} 
 						else return null;

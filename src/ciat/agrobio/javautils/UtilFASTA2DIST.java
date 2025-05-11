@@ -21,6 +21,7 @@
  */
 package ciat.agrobio.javautils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +55,15 @@ public class UtilFASTA2DIST {
 	@Parameter(names = "--verbose")
 	private boolean verbose = false;
 
-	@Parameter(names = {"--inputFile","-i"}, description = "Input_File", required = true)
-	private List<String> inputFileNames;
+	@Parameter(description = "FASTA positional input files")
+    private List<String> positionalInputFiles = new ArrayList<>();
+
+	@Parameter(names = { "-i", "--input" }, description = "FASTA input file(s)", variableArity = true)
+    private List<String> namedInputFiles = new ArrayList<>();
 	
+	@Parameter(names = {"--isFastq","-q"}, description = "Input is FASTQ", required = true)
+	private boolean isFastq = false;
+
 	@Parameter(names = {"--kmerSize","-k"}, description = "Kmer size", required = true)
 	private Integer k;
 
@@ -66,9 +73,22 @@ public class UtilFASTA2DIST {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 
+	@Parameter(names={"--useMappedBuffer"}, description="Use MappedByteBuffer for reading input files. Not compatible with piped input.")
+	private boolean useMappedBuffer = false;
+
 	@SuppressWarnings("unused")
 	public void go() {
 		try {
+			// Merge all FASTA inputs into one list
+            List<String> inputFileNames = new ArrayList<>();
+            inputFileNames.addAll(positionalInputFiles);
+            inputFileNames.addAll(namedInputFiles);
+
+			if (inputFileNames.isEmpty()) {
+                System.err.println("Error: No FASTA input files provided.");
+                return;
+            }
+
 			int cpus = Runtime.getRuntime().availableProcessors();
 			int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
 			if(verbose) System.err.println("cpus=" + cpus);
@@ -84,7 +104,7 @@ public class UtilFASTA2DIST {
 			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
 
 			Map<Integer, SequenceProcessor> sequenceProcessors = new HashMap<Integer, SequenceProcessor>();
-			FastaManager frm = new FastaManager(false, inputFileNames, startSignal, doneSignal);
+			FastaManager frm = new FastaManager(isFastq, false, inputFileNames, startSignal, doneSignal, useMappedBuffer);
 			pool.execute(frm);
 
 			SequenceProcessor.resetCounters();

@@ -22,6 +22,7 @@
 package ciat.agrobio.javautils;
 
 import java.io.FileInputStream;
+import java.io.PrintStream;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -46,8 +47,17 @@ public class UtilDIST2Clusters {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
-	@Parameter(description = "Input_File", required = true)
-	private String inputFileName;
+	@Parameter(names = { "-v", "--verbose"})
+	private boolean verbose = false;
+
+	@Parameter(description = "Positional Input File")
+	private String positionalInputFile;
+
+	@Parameter(names = { "-i", "--input" }, description = "Input file (overrides positional)")
+    private String namedInputFile;
+
+	@Parameter(names = { "-o", "--output" }, description = "Tree output file")
+    private String outputFile;
 	
 	//@Parameter(names = { "--numberOfThreads", "-t" })
 	//private int numOfThreads = 1;
@@ -64,19 +74,49 @@ public class UtilDIST2Clusters {
 	@SuppressWarnings("unused")
 	public void go() {
 		try {
+			//Output PrintStream
+			PrintStream ops = System.out;
+			if(outputFile != null) {
+				try {
+					ops = new PrintStream(outputFile);
+				} 
+				catch (Exception e) {
+					System.err.println("Error: Cannot write to " + outputFile);
+                return;
+				}
+			}
+
+			// Select Input File
+            String inputFileName = namedInputFile!=null?namedInputFile:positionalInputFile;
+
+			if (inputFileName == null) {
+                System.err.println("Error: No input file provided.");
+                return;
+            }
+
 			//int cpus = Runtime.getRuntime().availableProcessors();
 			//int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
 			//System.err.println("cpus=" + cpus);
 			//System.err.println("using=" + usingThreads);
 
 			//Read distances matrix and sample names
-			FileInputStream fis = new FileInputStream(inputFileName);
-			Object[] data = GeneralTools.readDistancesSamples(fis);
-			fis.close();
+			Object[] data;
+			if ("-".equals(inputFileName)) {
+				// Read data from stdin
+				data = GeneralTools.readDistancesSamples(System.in);
+			} else {
+				// Read from file
+				FileInputStream fis = new FileInputStream(inputFileName);
+				data = GeneralTools.readDistancesSamples(fis);
+				fis.close();
+			}
 			
 			//HCluster cluster
 			HierarchicalCluster hc = new HierarchicalCluster();
-			TreeMap<Integer, TreeSet<String>> clusters = hc.hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight, extra);
+			TreeMap<Integer, TreeSet<String>> clusters = hc.hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight, extra, ops);
+
+			ops.flush();
+			ops.close();
 		} 
 		catch (Exception e) {
 			e.printStackTrace();

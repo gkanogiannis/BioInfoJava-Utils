@@ -45,13 +45,15 @@ public class VCFManager implements Runnable{
 	private CountDownLatch doneSignal = null;
 
 	private boolean useMappedBuffer = false;
+	private boolean verbose = false;
 	
-	public VCFManager(VariantManager vm, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean useMappedBuffer) {
+	public VCFManager(VariantManager vm, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean useMappedBuffer, boolean verbose) {
 		this.vm = vm;
 		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
 		this.useMappedBuffer = useMappedBuffer;
+		this.verbose = verbose;
 	
 		this.commentData = new ArrayList<byte[]>();
 	}
@@ -91,7 +93,7 @@ public class VCFManager implements Runnable{
 				}
 			}
 			else {
-				VCFStreamingIterator<byte[][]> iterator = new VCFStreamingIterator<>(decoder, inputFileNames);
+				VCFStreamingIterator<byte[][]> iterator = new VCFStreamingIterator<>(decoder, verbose, inputFileNames);
 				for (byte[][] line : iterator) {
 					processVariantLine(line);	
 				}				

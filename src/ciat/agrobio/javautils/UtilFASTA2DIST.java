@@ -21,6 +21,7 @@
  */
 package ciat.agrobio.javautils;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +53,7 @@ public class UtilFASTA2DIST {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
-	@Parameter(names = "--verbose")
+	@Parameter(names = { "-v", "--verbose"})
 	private boolean verbose = false;
 
 	@Parameter(description = "FASTA positional input files")
@@ -60,12 +61,15 @@ public class UtilFASTA2DIST {
 
 	@Parameter(names = { "-i", "--input" }, description = "FASTA input file(s)", variableArity = true)
     private List<String> namedInputFiles = new ArrayList<>();
+
+	@Parameter(names = { "-o", "--output" }, description = "Distance output file")
+    private String outputFile;
 	
-	@Parameter(names = {"--isFastq","-q"}, description = "Input is FASTQ", required = true)
+	@Parameter(names = {"--isFastq","-q"}, description = "Input is FASTQ (default: false)")
 	private boolean isFastq = false;
 
-	@Parameter(names = {"--kmerSize","-k"}, description = "Kmer size", required = true)
-	private Integer k;
+	@Parameter(names = {"--kmerSize","-k"}, description = "Kmer size (default: 4)")
+	private Integer k = 4;
 
 	@Parameter(names = { "--normalize", "-n" })
 	private boolean normalize = false;
@@ -79,6 +83,18 @@ public class UtilFASTA2DIST {
 	@SuppressWarnings("unused")
 	public void go() {
 		try {
+			//Output PrintStream
+			PrintStream ops = System.out;
+			if(outputFile != null) {
+				try {
+					ops = new PrintStream(outputFile);
+				} 
+				catch (Exception e) {
+					System.err.println("Error: Cannot write to " + outputFile);
+                return;
+				}
+			}
+
 			// Merge all FASTA inputs into one list
             List<String> inputFileNames = new ArrayList<>();
             inputFileNames.addAll(positionalInputFiles);
@@ -110,7 +126,7 @@ public class UtilFASTA2DIST {
 			SequenceProcessor.resetCounters();
 			// Starting threads
 			for (int i = 0; i < usingThreads; i++) {
-				SequenceProcessor sp = new SequenceProcessor(seqVectors, frm, k, normalize, startSignal, doneSignal);
+				SequenceProcessor sp = new SequenceProcessor(seqVectors, frm, k, normalize, startSignal, doneSignal, verbose);
 				sequenceProcessors.put(sp.getId(), sp);
 				pool.execute(sp);
 			}
@@ -127,18 +143,20 @@ public class UtilFASTA2DIST {
 			
 			// Print data
 			int seqCounter = 0;
-			System.out.println(seqNames.size());
+			ops.println(seqNames.size());
 			for(int i=0; i<seqNames.size(); i++) {
 				String seqName1 = seqNames.get(i);
-				System.out.print(seqName1);
+				ops.print(seqName1);
 				for (int j=0;j<seqNames.size();j++) {
 					String seqName2 = seqNames.get(j);
-					System.out.print("\t"+GeneralTools.decimalFormat.format(distances[i][j]));
+					ops.print("\t"+GeneralTools.decimalFormat.format(distances[i][j]));
 				}
-				System.out.println("");
+				ops.println("");
 				seqCounter++;
 				//if(++sampleCounter % 10 == 0 && verbose) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
 			}
+			ops.flush();
+			ops.close();
 			//if(verbose) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
 		} 
 		catch (Exception e) {

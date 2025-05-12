@@ -21,6 +21,7 @@
  */
 package ciat.agrobio.javautils;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +52,7 @@ public class UtilVCF2TREE {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
-	@Parameter(names = "--verbose")
+	@Parameter(names = { "-v", "--verbose"})
 	private boolean verbose = false;
 
 	@Parameter(description = "VCF positional input files")
@@ -60,6 +61,9 @@ public class UtilVCF2TREE {
 	@Parameter(names = { "-i", "--input" }, description = "VCF input file(s)", variableArity = true)
     private List<String> namedInputFiles = new ArrayList<>();
 	
+	@Parameter(names = { "-o", "--output" }, description = "Tree output file")
+    private String outputFile;
+
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 	
@@ -77,6 +81,18 @@ public class UtilVCF2TREE {
 
 	public void go() {
 		try {
+			//Output PrintStream
+			PrintStream ops = System.out;
+			if(outputFile != null) {
+				try {
+					ops = new PrintStream(outputFile);
+				} 
+				catch (Exception e) {
+					System.err.println("Error: Cannot write to " + outputFile);
+                return;
+				}
+			}
+
 			// Merge all VCF inputs into one list
             List<String> inputFileNames = new ArrayList<>();
             inputFileNames.addAll(positionalInputFiles);
@@ -101,7 +117,7 @@ public class UtilVCF2TREE {
 
 			Map<Integer, VariantProcessor> variantProcessors = new HashMap<Integer, VariantProcessor>();
 			VariantManager vm = new VariantManager();
-			VCFManager vcfm = new VCFManager(vm, inputFileNames, startSignal, doneSignal, useMappedBuffer);
+			VCFManager vcfm = new VCFManager(vm, inputFileNames, startSignal, doneSignal, useMappedBuffer, verbose);
 			pool.execute(vcfm);
 
 			VariantProcessor.resetCounters();
@@ -132,9 +148,10 @@ public class UtilVCF2TREE {
 			
 			//HCluster tree
 			HierarchicalCluster hc = new HierarchicalCluster();
-			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[sampleNames.size()]), distances);
-			System.out.println(treeString);
-			
+			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[sampleNames.size()]), distances, ops);
+			ops.println(treeString);
+			ops.flush();
+			ops.close();
 		} 
 		catch (Exception e) {
 			e.printStackTrace();

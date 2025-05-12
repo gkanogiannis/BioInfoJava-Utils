@@ -43,17 +43,19 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
     private String nextLine;
     private T nextDecoded;
     private boolean usingStdin = false;
+    private boolean verbose = false;
 
-    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, List<String> inputPaths) {
+    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, boolean verbose, List<String> inputPaths) {
         this.inputPaths = inputPaths;
         this.decoder = decoder;
+        this.verbose = verbose;
         this.currentPathIndex = -1;
         advanceFile();  // Open first input
         advance();      // Read first valid line
     }
 
-    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, String... inputPaths) {
-        this(decoder, Arrays.asList(inputPaths));
+    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, boolean verbose, String... inputPaths) {
+        this(decoder, verbose, Arrays.asList(inputPaths));
     }
 
     private void advanceFile() {
@@ -65,6 +67,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             currentPathIndex++;
             if (currentPathIndex < inputPaths.size()) {
                 String path = inputPaths.get(currentPathIndex);
+                if(verbose) System.err.println("Reading from: " + path);
 
                 InputStream in;
                 if (path.equals("-")) {

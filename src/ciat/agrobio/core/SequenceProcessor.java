@@ -39,7 +39,8 @@ public class SequenceProcessor implements Runnable {
 	private boolean normalize;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
-	
+	private boolean verbose = false;
+
 	private ConcurrentHashMap<Integer, SequenceD2> seqVectors;
 	
 	public static void resetCounters(){
@@ -47,13 +48,14 @@ public class SequenceProcessor implements Runnable {
 		taskCount = new AtomicInteger(0);
 	}
 	
-	public SequenceProcessor(ConcurrentHashMap<Integer, SequenceD2> seqVectors, FastaManager frm, int k, boolean normalize, CountDownLatch startSignal, CountDownLatch doneSignal) {
+	public SequenceProcessor(ConcurrentHashMap<Integer, SequenceD2> seqVectors, FastaManager frm, int k, boolean normalize, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
 		this.seqVectors = seqVectors;
 		this.frm = frm;
 		this.k = k;
 		this.normalize = normalize;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
+		this.verbose = verbose;
 	}
 	
 	public static AtomicInteger getSequenceCount() {
@@ -124,7 +126,7 @@ public class SequenceProcessor implements Runnable {
 				//ReadD2Centroid seqVector = new ReadD2Centroid(read);
 				seqVectors.put(seqVector.getSequenceId(), seqVector);
 								
-				System.err.println(sequenceCount.get()+"\t"+seqVector.getShortName());
+				if(verbose) System.err.println(sequenceCount.get()+"\t"+seqVector.getShortName());
 				
 				//Clean sequence
 				sequenceD2.clearHeadSeq();

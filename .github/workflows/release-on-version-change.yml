@@ -1,0 +1,62 @@
+name: Release on version change
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "pom.xml"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Extract version from pom.xml
+        id: get_version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compare version with last release
+        id: check_release
+        run: |
+          CURRENT_VERSION=${{ steps.get_version.outputs.version }}
+          LATEST_RELEASE=$(gh release list --limit 1 --json tagName -q '.[0].tagName' || echo "")
+          echo "current=$CURRENT_VERSION"
+          echo "latest=$LATEST_RELEASE"
+          if [[ "$LATEST_RELEASE" == "v$CURRENT_VERSION" ]]; then
+            echo "No new version. Skipping release."
+            echo "release_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version detected. Will release."
+            echo "release_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build JAR
+        if: steps.check_release.outputs.release_needed == 'true'
+        run: mvn clean package
+
+      - name: Create GitHub release
+        if: steps.check_release.outputs.release_needed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: v${{ steps.get_version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            target/BioInfoJavaUtils-*jar

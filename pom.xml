@@ -87,9 +87,9 @@
                 <executions>
                     <execution>
                         <id>install-external</id>
-                        <phase>package</phase>
+                        <phase>clean</phase>
                         <configuration>
-                            <file>lib/jri-1.0.jar</file>
+                            <file>${project.basedir}/lib/jri-1.0.jar</file>
                             <groupId>jri</groupId>
                             <artifactId>jri</artifactId>
                             <version>1.0</version>

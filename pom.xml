@@ -83,13 +83,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
-                <version>3.0.1</version>
+                <version>3.1.4</version>
                 <executions>
                     <execution>
                         <id>install-external</id>
                         <phase>clean</phase>
                         <configuration>
-                            <file>${basedir}/lib/jri-1.0.jar</file>
+                            <file>${project.basedir}/lib/jri-1.0.jar</file>
                             <repositoryLayout>default</repositoryLayout>
                             <groupId>jri</groupId>
                             <artifactId>jri</artifactId>
@@ -133,7 +133,7 @@
                             <overWrite>true</overWrite>
                         </artifactItem>
                     </artifactItems>
-                    <outputDirectory>${basedir}/bin</outputDirectory>
+                    <outputDirectory>${project.basedir}/bin</outputDirectory>
                     <overWriteReleases>true</overWriteReleases>
                     <overWriteSnapshots>true</overWriteSnapshots>
                     <overWriteIfNewer>true</overWriteIfNewer>

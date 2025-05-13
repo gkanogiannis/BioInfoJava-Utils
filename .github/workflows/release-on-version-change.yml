@@ -50,7 +50,7 @@ jobs:
       - name: Install JRI JAR to local Maven repo
         run: |
           mvn install:install-file \
-            -Dfile=lib/jri-1.0.jar \
+            -Dfile=lib/JRI-1.0.jar \
             -DgroupId=jri \
             -DartifactId=jri \
             -Dversion=1.0 \

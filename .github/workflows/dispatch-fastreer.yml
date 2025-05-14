@@ -1,0 +1,16 @@
+name: Notify fastreeR on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify-fastreer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send dispatch to fastreeR
+        run: |
+          curl -X POST https://api.github.com/repos/gkanogiannis/fastreeR/dispatches \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.FASTREER_PAT }}" \
+            -d '{"event_type": "backend-release", "client_payload": {"version": "${{ github.event.release.tag_name }}"}}'

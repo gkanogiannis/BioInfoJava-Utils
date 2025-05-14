@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
-    <version>1.13.12</version>
+    <version>1.13.13</version>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
@@ -148,7 +148,7 @@
                         <artifactItem>
                             <groupId>com.gkanogiannis</groupId>
                             <artifactId>BioInfoJavaUtils</artifactId>
-                            <version>1.13.12</version>
+                            <version>LATEST</version>
                             <type>jar</type>
                             <overWrite>true</overWrite>
                         </artifactItem>
@@ -171,17 +171,17 @@
         <dependency>
             <groupId>net.sf.trove4j</groupId>
             <artifactId>trove4j</artifactId>
-            <version>3.0.3</version>
+            <version>LATEST</version>
         </dependency>
         <dependency>
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
-            <version>1.72</version>
+            <version>LATEST</version>
         </dependency>
         <dependency>
             <groupId>org.jfree</groupId>
             <artifactId>jfreechart</artifactId>
-            <version>1.5.3</version>
+            <version>LATEST</version>
         </dependency>
 
 		

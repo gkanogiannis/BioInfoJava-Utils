@@ -78,9 +78,10 @@ public class JavaUtils {
 			boolean help = f.getBoolean(util);
 			
 			if(help) {
-				StringBuilder sb = new StringBuilder();
-				jc.usage(jc.getParsedCommand(),sb);
-				System.err.println(sb.toString());
+				jc.getCommands().get(jc.getParsedCommand()).usage();
+				//StringBuilder sb = new StringBuilder();
+				//jc.usage(jc.getParsedCommand(),sb);
+				//System.err.println(sb.toString());
 				System.exit(0);
 			}
 			
@@ -93,9 +94,10 @@ public class JavaUtils {
 		}
 		catch (ParameterException e) {
 			System.err.println(e.getMessage());
-			StringBuilder sb = new StringBuilder();
-			jc.usage(jc.getParsedCommand(),sb);
-			System.err.println(sb.toString());
+			jc.getCommands().get(jc.getParsedCommand()).usage();
+			//StringBuilder sb = new StringBuilder();
+			//jc.usage(jc.getParsedCommand(),sb);
+			//System.err.println(sb.toString());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

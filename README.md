@@ -1,43 +1,60 @@
 # BioInfoJava-Utils
 
-**BioInfoJava-Utils** is a collection of Java-based utilities designed to facilitate various bioinformatics analyses, including distance calculations, phylogenetic tree construction, and hierarchical clustering on VCF and FASTA files.
+**BioInfoJava-Utils**  is a modular Java library providing high-performance implementations of core bioinformatics algorithms, such as distance matrix computation and phylogenetic tree construction from **VCF** and **FASTA** files.
+
+This library serves as the computational backend for the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) software suite, which offers a flexible and user-friendly interface to these tools across multiple platforms and environments.
+
+## Integration and Accessibility
+
+The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
+
+* ✅ **Python CLI**: through a lightweight [Python wrapper](https://github.com/gkanogiannis/fastreeR/blob/devel/fastreeR.py) that calls the Java backend via `subprocess`
+* ✅ **Bioconda**: install with `conda install -c bioconda fastreer`
+* ✅ **PyPI**: install with `pip install fastreer`
+* ✅ **Docker**: available on [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized execution
+* ✅ **R / Bioconductor**: via the [`fastreeR`](https://bioconductor.org/packages/fastreeR) package using `rJava`
+* ✅ **Pure Java API**: developers can integrate this library directly in Java-based pipelines or software.
 
 ## Overview
 
-This toolkit provides efficient and parallelized implementations of common bioinformatics algorithms, making it suitable for large-scale genomic data analyses. The utilities are also integrated into the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) R [Bioconductor](https://www.bioconductor.org/packages/release/bioc/html/fastreeR.html) package via `rJava` and the relevant [`fastreeR.py`](https://github.com/gkanogiannis/fastreeR/bin) CLI wrapper, allowing seamless use within R, Linux and Windows console environments.
+**BioInfoJava-Utils** provides efficient, scalable, and parallel implementations of widely used bioinformatics algorithms. It is designed for processing large-scale genomic datasets efficiently, supporting both research and production environments.
 
 ## Features
 
-- Compute distance matrices from VCF and FASTA files.
-- Construct phylogenetic trees using agglomerative neighbor-joining methods.
-- Perform hierarchical clustering and dynamic tree pruning.
-- Parallel processing capabilities for handling large datasets.
+* ⚙️ Compute sample-wise **distance matrices** from VCF (cosine) or FASTA (D2S) files
+* 🌳 Build **phylogenetic trees** using neighbor-joining algorithm
+* 🧬 Support for **hierarchical clustering** with dynamic tree pruning
+* 🔄 **Multithreaded** processing for large input files
+* 📦 Integrates seamlessly into diverse environments (R, Python, Docker, Java)
 
 ## Installation
 
 ### Prerequisites
 
-- Java 8 or higher
-- Maven (for building the project)
+  - Java 8 or higher
+  - Maven (for building the project)
 
 ### Building from Source
 
 1. Clone the repository:
-   ```bash
+
+```bash
    git clone https://github.com/gkanogiannis/BioInfoJava-Utils.git
-   ```
+```
 
 2. Navigate to the project directory:
-   ```bash
+
+```bash
    cd BioInfoJava-Utils
-   ```
+```
 
 3. Build the project using Maven:
-   ```bash
-   mvn clean install package
-   ```
 
-This will generate a JAR file in the `target` directory.
+```bash
+   mvn clean initialize package
+```
+
+This will generate a JAR files in the `bin` directory.
 
 ## Usage
 
@@ -48,10 +65,6 @@ ciat.agrobio.javautils.JavaUtils
 ```
 
 You can run the utilities via the command line or integrate them into other Java applications.
-
-## Integration with R
-
-The functionalities provided by BioInfoJava-Utils are accessible in R through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) package, which leverages `rJava` for interfacing with Java code. This integration allows users to perform complex bioinformatics analyses directly within R.
 
 ## License
 

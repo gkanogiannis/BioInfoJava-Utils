@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ciat.agrobio.core.GeneralTools;
+import ciat.agrobio.core.Logger;
 import ciat.agrobio.core.Sequence;
 
 public class FastaManager implements Runnable{
@@ -150,7 +151,7 @@ public class FastaManager implements Runnable{
 		try{
 			done = false;
 			
-		    System.err.println(GeneralTools.time()+" FastaManager: START READ\tStreaming:"+(!useMappedBuffer));
+		    Logger.info("FastaManager: START READ\tStreaming:"+(!useMappedBuffer));
 		    startSignal.countDown();
 		    
 			//Get list of lines of full reads (reads_chunk) from the fasta/fastq file (possibly multiline)
@@ -168,8 +169,8 @@ public class FastaManager implements Runnable{
 				}
 			}
 		    
-			System.err.println(GeneralTools.time()+" FastaManager: END READ");
-			System.err.println(GeneralTools.time()+" FastaManager: "+(isFastq?"FASTQ":"FASTA"));
+			Logger.info("FastaManager: END READ");
+			Logger.info("FastaManager: "+(isFastq?"FASTQ":"FASTA"));
 			done = true;
 			doneSignal.countDown();
 		}

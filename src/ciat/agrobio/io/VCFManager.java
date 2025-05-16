@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ciat.agrobio.core.GeneralTools;
+import ciat.agrobio.core.Logger;
 import ciat.agrobio.core.Variant;
 import ciat.agrobio.core.VariantManager;
 
@@ -72,10 +73,11 @@ public class VCFManager implements Runnable{
 	
 	public void run() {
 		try{
+			Logger.setVerbose(verbose);
 			done = false;
 			startSignal.countDown();
 			
-		    System.err.println(GeneralTools.time()+" VCFManager: START READ\tStreaming:"+(!useMappedBuffer));
+			Logger.info("VCFManager: START READ\tStreaming:"+(!useMappedBuffer));
 		    
 		    VCFDecoder decoder = new VCFDecoder();
 		    //byte[][] line : split at tabs, byte[] is a string between tabs
@@ -99,7 +101,7 @@ public class VCFManager implements Runnable{
 				}				
 			}
 		    
-			System.err.println(GeneralTools.time()+" VCFManager: END READ");
+			Logger.info("VCFManager: END READ");
 			vm.setNumVariants(this.currVariantId.get());
 			done = true;
 			doneSignal.countDown();

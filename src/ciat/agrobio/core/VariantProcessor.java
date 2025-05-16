@@ -74,6 +74,7 @@ public class VariantProcessor implements Runnable {
 
 	public void run() {
 		try{
+			Logger.setVerbose(verbose);
 			startSignal.await();
 			boolean done = false;
 			while(!done){
@@ -90,8 +91,7 @@ public class VariantProcessor implements Runnable {
 				//Process variant data
 				int count = variantCount.incrementAndGet(); 
 				if(count % 1000 == 0 && verbose){
-					System.err.print("\r"+GeneralTools.time()+" VariantProcessor ("+id+"):\t"+count);
-					System.err.flush();
+					Logger.infoCarret("VariantProcessor ("+id+"):\t"+count);
 				}
 				
 				byte numAlleles=0;

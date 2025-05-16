@@ -22,6 +22,7 @@
 package ciat.agrobio.core;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -103,10 +104,12 @@ public class GeneralTools {
 	}
 	*/
 		
+	/*
 	public static String time() {
 		Calendar cal = Calendar.getInstance();
 		return dateFormat.format(cal.getTime());
 	}
+	*/
 	
 	public static String RAMInfo(Runtime runtime){
 		double gb = (double)1024*1024*1024;
@@ -394,6 +397,18 @@ public class GeneralTools {
 		return distancesReordered;
 	}
 	
+	public static Object[] readDistancesSamples(String input) {
+		try {
+			FileInputStream fis = new FileInputStream(input);
+			Object[] data = readDistancesSamples(fis);
+			fis.close();
+			return data;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public static Object[] readDistancesSamples(InputStream input) {
 		try {
 			BufferedReader br = new BufferedReader(new InputStreamReader(input));

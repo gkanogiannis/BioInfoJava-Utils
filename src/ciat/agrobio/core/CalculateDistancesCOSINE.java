@@ -37,6 +37,7 @@ public class CalculateDistancesCOSINE {
 
 	public CalculateDistancesCOSINE(boolean verbose) {
 		CalculateDistancesCOSINE.verbose = verbose;
+		Logger.setVerbose(verbose);
 	}
 	
 	public static void resetCounters(){
@@ -198,8 +199,7 @@ class CalculateDistancesChildTask extends RecursiveAction {
 			}
 			int count = sampleCounter.incrementAndGet();
 			if(count % 1 == 0 && CalculateDistancesCOSINE.verbose) {
-				System.err.print("\r"+GeneralTools.time()+" CalculateDistancesChildTask ("+id+"):\t"+count);
-				System.err.flush();
+				Logger.infoCarret("CalculateDistancesChildTask ("+id+"):\t"+count);
 			}
 
 		} 

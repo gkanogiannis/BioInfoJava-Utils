@@ -21,7 +21,7 @@
  */
 package ciat.agrobio.hcluster;
 
-import ciat.agrobio.core.GeneralTools;
+import ciat.agrobio.core.Logger;
 import gnu.trove.iterator.TLongDoubleIterator;
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
@@ -38,7 +38,7 @@ public class ClusterVectorTrove {
 	public ClusterVectorTrove(long initialCapacityLong, long splitKey) {
 		int initialCapacityInt = (int)((double)(initialCapacityLong/4L)*1.1);
 		if(initialCapacityInt>1000000000) initialCapacityInt = 1000000000;
-		System.out.println(GeneralTools.time()+"\tTrove size/4="+initialCapacityInt);
+		Logger.info("\tTrove size/4="+initialCapacityInt);
 		
 		//
 		//initialCapacityInt = 1024;

@@ -35,6 +35,7 @@ import javax.swing.tree.DefaultTreeModel;
 
 import ciat.agrobio.core.GeneralTools;
 import ciat.agrobio.core.JRITools_JavaUtils;
+import ciat.agrobio.core.Logger;
 
 /**
  * Simple clustering algorithm, starting from distance matrix, 
@@ -343,7 +344,7 @@ public class HierarchicalCluster {
 			ops.println("afterCut");
 			jritools.shutdown();
 			
-			ops.println(GeneralTools.time()+" Clusters="+clusters.size()+"\n");
+			ops.println(Logger.timestamp()+" Clusters="+clusters.size()+"\n");
 			for(Entry<Integer, TreeSet<String>> entry : clusters.entrySet()){
 				int clusterId = entry.getKey();
 				TreeSet<String> cluster = entry.getValue();
@@ -364,10 +365,15 @@ public class HierarchicalCluster {
 		}
 	}
 	
+	public String[] hclusteringClustersNoJRI(TreeMap<Integer, TreeSet<String>> clusters){
+		return hclusteringClustersNoJRI(clusters, null);
+	}
+
 	public String[] hclusteringClustersNoJRI(TreeMap<Integer, TreeSet<String>> clusters, PrintStream ops){
 		try {
+			ops = ops==null?System.out:ops;
 			ArrayList<String> al = new ArrayList<String>();
-			ops.println(GeneralTools.time()+" Clusters="+clusters.size()+"\n");
+			ops.println(Logger.timestamp()+" Clusters="+clusters.size()+"\n");
 			for(Entry<Integer, TreeSet<String>> entry : clusters.entrySet()){
 				StringBuilder sb = new StringBuilder();
 				int clusterId = entry.getKey();
@@ -420,10 +426,15 @@ public class HierarchicalCluster {
 	public TreeMap<Integer, TreeSet<String>> findClusters(int[] result, String[] labels) {
 		return this.findClusters(Arrays.stream(result).asDoubleStream().toArray(), labels);
 	}
+
+	public String hclusteringTree(String[] sampleNames, double[][] distances){
+		return hclusteringTree(sampleNames, distances, null);
+	}
 	
 	public String hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops){
 		try {
-			ops.println(GeneralTools.time()+" Distances="+distances.length+"x"+distances[0].length);
+			ops = ops==null?System.out:ops;
+			ops.println(Logger.timestamp()+" Distances="+distances.length+"x"+distances[0].length);
 			
 			String method = HierarchicalCluster.COMPLETE;
 			this.setDistanceMatrix(distances);

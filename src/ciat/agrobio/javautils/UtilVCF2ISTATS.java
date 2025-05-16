@@ -39,6 +39,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import ciat.agrobio.core.GeneralTools;
+import ciat.agrobio.core.Logger;
 
 @Parameters(commandDescription = "VCF2ISTATS")
 public class UtilVCF2ISTATS {
@@ -122,7 +123,7 @@ public class UtilVCF2ISTATS {
 							indiv.set(3, (int)indiv.get(3)+1);
 	
 					}
-					if(++varCounter % 50000 == 0) System.err.println(GeneralTools.time()+" Variants Processed : \t"+varCounter);
+					if(++varCounter % 50000 == 0) Logger.info("Variants Processed : \t"+varCounter);
 				}
 			}
 			br.close();

@@ -56,14 +56,16 @@ public class HierarchicalCluster {
 	private int[] leafCount; // # leaves under each node
 	private double joinDistance[]; // Inter-cluster distance; NOT branch length
 	private Clade[] nodes;
+
+	private boolean verbose;
 	
-	private GeneralTools gTools = GeneralTools.getInstance();
+	//private GeneralTools gTools = GeneralTools.getInstance();
 
 	/**
 	 * Constructor using default linkage method.
 	 */
-	public HierarchicalCluster() {
-		this(null, null, COMPLETE);
+	public HierarchicalCluster(boolean verbose) {
+		this(null, null, COMPLETE, verbose);
 	}
 	
 	/**
@@ -71,8 +73,8 @@ public class HierarchicalCluster {
 	 * @param distanceMatrix a square matrix with values in [0..1]
 	 * @param labels leaf labels for each row/column in the distance matrix
 	 */
-	public HierarchicalCluster(double[][] distanceMatrix, String[] labels) {
-		this(distanceMatrix, labels, COMPLETE);
+	public HierarchicalCluster(double[][] distanceMatrix, String[] labels, boolean verbose) {
+		this(distanceMatrix, labels, COMPLETE, verbose);
 	}
 	
 	/**
@@ -81,10 +83,12 @@ public class HierarchicalCluster {
 	 * @param labels leaf labels for each row/column in the distance matrix
 	 * @param linkageMethod either AVERAGE, COMPLETE or SINGLE
 	 */
-	public HierarchicalCluster(double[][] distanceMatrix, String[] labels, String linkageMethod) {
+	public HierarchicalCluster(double[][] distanceMatrix, String[] labels, String linkageMethod, boolean verbose) {
 		setDistanceMatrix(distanceMatrix);
 		setLeafLabels(labels);
 		setLinkageMethod(linkageMethod);
+		this.verbose = verbose;
+		Logger.setVerbose(verbose);
 	}
 	 
 	/**
@@ -328,14 +332,15 @@ public class HierarchicalCluster {
 	
 	public TreeMap<Integer, TreeSet<String>> hclusteringClusters(String[] sampleNames, double[][] distances, Integer minClusterSize, Double cutHeight, boolean extra, PrintStream ops){
 		try {
+			ops = ops==null?System.err:ops;
 			String treeString = this.hclusteringTree(sampleNames, distances, ops);
 			//System.err.println(treeString);
 			//System.err.println(System.getProperty("java.library.path"));
 			
 			//Labels need to be in the order they appear in the tree string, before passed to dynamictreecut.
 			//So we reorder the labels and then the distances matrix.
-			String[] labelsReordered = gTools.reorderLabels(sampleNames, treeString);
-			double[][] distancesReordered = gTools.reorderDistances(distances, sampleNames, labelsReordered);
+			String[] labelsReordered = GeneralTools.reorderLabels(sampleNames, treeString);
+			double[][] distancesReordered = GeneralTools.reorderDistances(distances, sampleNames, labelsReordered);
 		
 			ops.println("preJRI");
 			JRITools_JavaUtils jritools = JRITools_JavaUtils.getInstance(null);
@@ -371,7 +376,7 @@ public class HierarchicalCluster {
 
 	public String[] hclusteringClustersNoJRI(TreeMap<Integer, TreeSet<String>> clusters, PrintStream ops){
 		try {
-			ops = ops==null?System.out:ops;
+			ops = ops==null?System.err:ops;
 			ArrayList<String> al = new ArrayList<String>();
 			ops.println(Logger.timestamp()+" Clusters="+clusters.size()+"\n");
 			for(Entry<Integer, TreeSet<String>> entry : clusters.entrySet()){
@@ -433,9 +438,8 @@ public class HierarchicalCluster {
 	
 	public String hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops){
 		try {
-			ops = ops==null?System.out:ops;
+			ops = ops==null?System.err:ops;
 			ops.println(Logger.timestamp()+" Distances="+distances.length+"x"+distances[0].length);
-			
 			String method = HierarchicalCluster.COMPLETE;
 			this.setDistanceMatrix(distances);
 			this.setLeafLabels(sampleNames);

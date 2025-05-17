@@ -199,7 +199,7 @@ class CalculateDistancesChildTask extends RecursiveAction {
 			}
 			int count = sampleCounter.incrementAndGet();
 			if(count % 1 == 0 && CalculateDistancesCOSINE.verbose) {
-				Logger.infoCarret("CalculateDistancesChildTask ("+id+"):\t"+count);
+				Logger.infoCarret(this, "CalculateDistancesChildTask ("+id+"):\t"+count);
 			}
 
 		} 

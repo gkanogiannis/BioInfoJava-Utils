@@ -91,7 +91,7 @@ public class VariantProcessor implements Runnable {
 				//Process variant data
 				int count = variantCount.incrementAndGet(); 
 				if(count % 1000 == 0 && verbose){
-					Logger.infoCarret("VariantProcessor ("+id+"):\t"+count);
+					Logger.infoCarret(this, "VariantProcessor ("+id+"):\t"+count);
 				}
 				
 				byte numAlleles=0;

@@ -38,7 +38,7 @@ public class ClusterVectorTrove {
 	public ClusterVectorTrove(long initialCapacityLong, long splitKey) {
 		int initialCapacityInt = (int)((double)(initialCapacityLong/4L)*1.1);
 		if(initialCapacityInt>1000000000) initialCapacityInt = 1000000000;
-		Logger.info("\tTrove size/4="+initialCapacityInt);
+		Logger.info(this, "\tTrove size/4="+initialCapacityInt);
 		
 		//
 		//initialCapacityInt = 1024;

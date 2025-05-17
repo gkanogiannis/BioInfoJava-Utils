@@ -183,7 +183,7 @@ public class JRITools_JavaUtils {
 			
 			
 			//find final clusters
-			HierarchicalCluster hc = new HierarchicalCluster();
+			HierarchicalCluster hc = new HierarchicalCluster(true);
 			TreeMap<Integer, TreeSet<String>> clusters = hc.findClusters(result, labels);
 	
 			return clusters;

@@ -151,7 +151,7 @@ public class FastaManager implements Runnable{
 		try{
 			done = false;
 			
-		    Logger.info("FastaManager: START READ\tStreaming:"+(!useMappedBuffer));
+		    Logger.info(this, "START READ\tStreaming:"+(!useMappedBuffer));
 		    startSignal.countDown();
 		    
 			//Get list of lines of full reads (reads_chunk) from the fasta/fastq file (possibly multiline)
@@ -169,8 +169,8 @@ public class FastaManager implements Runnable{
 				}
 			}
 		    
-			Logger.info("FastaManager: END READ");
-			Logger.info("FastaManager: "+(isFastq?"FASTQ":"FASTA"));
+			Logger.info(this, "END READ");
+			Logger.info(this, (isFastq?"FASTQ":"FASTA"));
 			done = true;
 			doneSignal.countDown();
 		}

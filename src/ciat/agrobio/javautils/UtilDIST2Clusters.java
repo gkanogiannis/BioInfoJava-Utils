@@ -112,7 +112,7 @@ public class UtilDIST2Clusters {
 			}
 			
 			//HCluster cluster
-			HierarchicalCluster hc = new HierarchicalCluster();
+			HierarchicalCluster hc = new HierarchicalCluster(true);
 			TreeMap<Integer, TreeSet<String>> clusters = hc.hclusteringClusters((String[])data[1], (double[][])data[0], minClusterSize, cutHeight, extra, ops);
 
 			ops.flush();

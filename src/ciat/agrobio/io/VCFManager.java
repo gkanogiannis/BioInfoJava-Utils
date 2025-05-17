@@ -77,7 +77,7 @@ public class VCFManager implements Runnable{
 			done = false;
 			startSignal.countDown();
 			
-			Logger.info("VCFManager: START READ\tStreaming:"+(!useMappedBuffer));
+			Logger.info(this, "START READ\tStreaming:"+(!useMappedBuffer));
 		    
 		    VCFDecoder decoder = new VCFDecoder();
 		    //byte[][] line : split at tabs, byte[] is a string between tabs
@@ -101,7 +101,7 @@ public class VCFManager implements Runnable{
 				}				
 			}
 		    
-			Logger.info("VCFManager: END READ");
+			Logger.info(this, "END READ");
 			vm.setNumVariants(this.currVariantId.get());
 			done = true;
 			doneSignal.countDown();

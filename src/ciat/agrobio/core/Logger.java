@@ -13,42 +13,42 @@ public class Logger {
         verbose = v;
     }
 
-    public static void info(String msg) {
-        if (verbose) info(msg, System.err);
+    public static void info(Object caller, String msg) {
+        if (verbose) info(caller, msg, System.err);
     }
-    public static void info(String msg, PrintStream ps) {
-        if (verbose) ps.println("[INFO] " + timestamp() + " - " + msg);
+    public static void info(Object caller, String msg, PrintStream ps) {
+        if (verbose) ps.println(caller.getClass().getSimpleName() + " " + "[INFO] " + timestamp() + " - " + msg);
     }
     
-    public static void infoCarret(String msg) {
-        if (verbose) info(msg, System.err);
+    public static void infoCarret(Object caller, String msg) {
+        if (verbose) info(caller, msg, System.err);
     }
-    public static void infoCarret(String msg, PrintStream ps) {
+    public static void infoCarret(Object caller, String msg, PrintStream ps) {
         if (verbose) {
-            ps.print("\r[INFO] " + timestamp() + " - " + msg);
+            ps.print("\r" + caller.getClass().getSimpleName() + " " + "[INFO] " + timestamp() + " - " + msg);
             ps.flush();
         }
     }
 
-    public static void warn(String msg) {
-        warn(msg, System.err);
+    public static void warn(Object caller, String msg) {
+        warn(caller, msg, System.err);
     }
-    public static void warn(String msg, PrintStream ps) {
-        ps.println("[WARN] " + timestamp() + " - " + msg);
-    }
-
-    public static void error(String msg) {
-        error(msg, System.err);
-    }
-    public static void error(String msg, PrintStream ps) {
-        ps.println("[ERROR] " + timestamp() + " - " + msg);
+    public static void warn(Object caller, String msg, PrintStream ps) {
+        ps.println(caller.getClass().getSimpleName() + " " + "[WARN] " + timestamp() + " - " + msg);
     }
 
-    public static void debug(String msg) {
-        if (verbose) debug(msg, System.err);
+    public static void error(Object caller, String msg) {
+        error(caller, msg, System.err);
     }
-    public static void debug(String msg, PrintStream ps) {
-        if (verbose) ps.println("[DEBUG] " + timestamp() + " - " + msg);
+    public static void error(Object caller, String msg, PrintStream ps) {
+        ps.println(caller.getClass().getSimpleName() + " " + "[ERROR] " + timestamp() + " - " + msg);
+    }
+
+    public static void debug(Object caller, String msg) {
+        if (verbose) debug(caller, msg, System.err);
+    }
+    public static void debug(Object caller, String msg, PrintStream ps) {
+        if (verbose) ps.println(caller.getClass().getSimpleName() + " " + "[DEBUG] " + timestamp() + " - " + msg);
     }
 
     public static String timestamp() {

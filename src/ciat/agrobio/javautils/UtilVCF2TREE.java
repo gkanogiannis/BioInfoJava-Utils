@@ -147,8 +147,8 @@ public class UtilVCF2TREE {
 			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoreMissing);
 			
 			//HCluster tree
-			HierarchicalCluster hc = new HierarchicalCluster();
-			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[sampleNames.size()]), distances, ops);
+			HierarchicalCluster hc = new HierarchicalCluster(verbose);
+			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[sampleNames.size()]), distances, null);
 			ops.println(treeString);
 			ops.flush();
 			ops.close();

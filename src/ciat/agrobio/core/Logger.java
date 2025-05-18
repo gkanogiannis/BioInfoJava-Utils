@@ -21,7 +21,7 @@ public class Logger {
     }
     
     public static void infoCarret(Object caller, String msg) {
-        if (verbose) info(caller, msg, System.err);
+        if (verbose) infoCarret(caller, msg, System.err);
     }
     public static void infoCarret(Object caller, String msg, PrintStream ps) {
         if (verbose) {

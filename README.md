@@ -8,12 +8,19 @@ This library serves as the computational backend for the [`fastreeR`](https://gi
 
 The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
 
-* ✅ **Python CLI**: through a lightweight [Python wrapper](https://github.com/gkanogiannis/fastreeR/blob/devel/fastreeR.py) that calls the Java backend via `subprocess`
-* ✅ **Bioconda**: install with `conda install -c bioconda fastreer`
-* ✅ **PyPI**: install with `pip install fastreer`
-* ✅ **Docker**: available on [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized execution
-* ✅ **R / Bioconductor**: via the [`fastreeR`](https://bioconductor.org/packages/fastreeR) package using `rJava`
-* ✅ **Pure Java API**: developers can integrate this library directly in Java-based pipelines or software.
+- ✅ **Bioconda**: install with `conda install -c bioconda fastreer`
+- ✅ **Docker**: available on
+  [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and
+  [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized
+  execution
+- ✅ **PyPI**: install with `pip install fastreer`
+- ✅ **Python CLI**: through a lightweight [Python
+  wrapper](https://github.com/gkanogiannis/fastreeR/blob/devel/fastreeR.py)
+  that calls the Java backend
+- ✅ **R / Bioconductor**: via `rJava`
+- ✅ **Galaxy**: Also available on Galaxy Toolshed.
+- ✅ **Pure Java API**: developers can integrate this library directly
+  in Java-based pipelines or software.
 
 ## Overview
 
@@ -31,8 +38,8 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 
 ### Prerequisites
 
-  - Java 8 or higher
-  - Maven (for building the project)
+* Java 8 or higher
+* Maven (for building the project)
 
 ### Building from Source
 
@@ -51,7 +58,7 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 3. Build the project using Maven:
 
 ```bash
-   mvn clean initialize package
+   mvn clean package install
 ```
 
 This will generate a JAR files in the `bin` directory.
@@ -65,6 +72,10 @@ ciat.agrobio.javautils.JavaUtils
 ```
 
 You can run the utilities via the command line or integrate them into other Java applications.
+
+```java
+java -jar bin/BioInfoJavaUtils-VERSION-jar-with-dependencies.jar --help
+```
 
 ## License
 

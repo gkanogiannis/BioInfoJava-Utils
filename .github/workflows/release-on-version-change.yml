@@ -1,11 +1,12 @@
 name: Release on version change
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "pom.xml"
+  #push:
+  #  branches:
+  #    - main
+  #  paths:
+  #    - "pom.xml"
+  workflow_dispatch:
 
 permissions:
   contents: write

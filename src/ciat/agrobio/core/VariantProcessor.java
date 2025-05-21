@@ -89,8 +89,9 @@ public class VariantProcessor implements Runnable {
 					continue;
 				}
 				//Process variant data
-				int count = variantCount.incrementAndGet(); 
-				if(count % 1000 == 0 && verbose){
+				int count = variantCount.incrementAndGet();
+				int step = GeneralTools.getAdaptiveVariantStep(count);
+				if (count % step == 0 && verbose) {
 					Logger.infoCarret(this, "VariantProcessor ("+id+"):\t"+count);
 				}
 				
@@ -146,5 +147,5 @@ public class VariantProcessor implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 }

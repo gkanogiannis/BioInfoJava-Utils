@@ -140,7 +140,8 @@ class CalculateD2ChildTask extends RecursiveAction {
 				//System.out.println(Utils.time()+"\td2S for couple ["+seqNames.get(i)+" :: "+seqNames.get(j)+"]="+d2_measure);
 			}
 			int count = sequenceCounter.incrementAndGet();
-			if(count % 1 == 0 && CalculateDistancesD2.verbose) 
+			int step = GeneralTools.getAdaptiveSampleStep(count);
+			if(count % step == 0 && CalculateDistancesD2.verbose) 
 				Logger.infoCarret(this, "CalculateD2ChildTask("+id+"): "+"\t"+count);
 		} 
 		catch (Exception e) {

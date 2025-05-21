@@ -38,6 +38,7 @@ import java.util.zip.GZIPInputStream;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import ciat.agrobio.core.GeneralTools;
 import ciat.agrobio.core.Logger;
 
 @Parameters(commandDescription = "VCF2ISTATS")
@@ -122,7 +123,8 @@ public class UtilVCF2ISTATS {
 							indiv.set(3, (int)indiv.get(3)+1);
 	
 					}
-					if(++varCounter % 1000 == 0) 
+					int step = GeneralTools.getAdaptiveVariantStep(++varCounter);
+					if (varCounter % step == 0) 
 						Logger.infoCarret(this, "Variants Processed: \t"+varCounter);
 				}
 			}

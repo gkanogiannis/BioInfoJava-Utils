@@ -458,4 +458,16 @@ public class GeneralTools {
 		return magic == GZIPInputStream.GZIP_MAGIC;
 	}
 	
+	public static int getAdaptiveVariantStep(int count) {
+		if (count < 10_000) return 100;
+		else if (count < 100_000) return 1_000;
+		else if (count < 1_000_000) return 10_000;
+		else return 100_000;
+	}
+
+	public static int getAdaptiveSampleStep(int count) {
+		if (count < 100) return 10;
+		else if (count < 1_000) return 100;
+		else return 1_000;
+	}
 }

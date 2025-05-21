@@ -48,6 +48,10 @@ public class VariantProcessor implements Runnable {
 		taskCount = new AtomicInteger(0);
 	}
 	
+	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
+		this(vm, vcfm, startSignal, doneSignal, false);
+	}
+
 	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
 		this.vm = vm;
 		this.vcfm = vcfm;

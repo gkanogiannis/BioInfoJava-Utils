@@ -6,3 +6,4 @@
 src-unused/
 /.idea/
 /.vscode/
+.DS_Store

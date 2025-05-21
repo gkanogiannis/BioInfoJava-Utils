@@ -28,32 +28,9 @@
                 <configuration>
                     <release>8</release>
                     <excludes>
-                        <exclude>ciat/agrobio/bean/fingerprint/*</exclude>
-                        <exclude>ciat/agrobio/bean/*</exclude>
-                        <exclude>ciat/agrobio/syngenta2017/*</exclude>
-                        <exclude>ciat/agrobio/core/CalculateDistancesCOSINE_OLD.java</exclude>
-                        <exclude>ciat/agrobio/core/GenotypeEncoder_OLD.java</exclude>
-                        <exclude>ciat/agrobio/core/SampleVariantTools.java</exclude>
-                        <exclude>ciat/agrobio/core/VariantProcessor_OLD.java</exclude>
-                        <exclude>ciat/agrobio/core/VariantSimple.java</exclude>     	
-                        <exclude>ciat/agrobio/io/VCFManager_OLD.java</exclude>              	
-                        <exclude>ciat/agrobio/javautils/UtilARFFaddTrait.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilARFFClassifyFromWeka.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilDIST2Hist.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2ARFF.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2CSV.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2DIST_OLD.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2SVM.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2TABLE.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCF2TREE_OLD.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFClassifyFromTxtModel.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFFilter.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFKeepSamples.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFKeepVariants.java</exclude>
+                        <exclude>ciat/agrobio/javautils/UtilVCFKeepSamples.java</exclude>                    
                         <exclude>ciat/agrobio/javautils/UtilVCFNonrelated.java</exclude>
                         <exclude>ciat/agrobio/javautils/UtilVCFRemoveClones.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFRemoveSamples.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFsIntersection.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

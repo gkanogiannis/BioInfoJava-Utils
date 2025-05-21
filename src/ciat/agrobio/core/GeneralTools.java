@@ -103,13 +103,11 @@ public class GeneralTools {
 		return db;
 	}
 	*/
-		
-	/*
+	
 	public static String time() {
 		Calendar cal = Calendar.getInstance();
 		return dateFormat.format(cal.getTime());
 	}
-	*/
 	
 	public static String RAMInfo(Runtime runtime){
 		double gb = (double)1024*1024*1024;

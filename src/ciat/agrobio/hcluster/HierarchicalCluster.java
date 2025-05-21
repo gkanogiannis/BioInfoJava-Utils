@@ -64,6 +64,9 @@ public class HierarchicalCluster {
 	/**
 	 * Constructor using default linkage method.
 	 */
+	public HierarchicalCluster() {
+		this(null, null, COMPLETE, false);
+	}
 	public HierarchicalCluster(boolean verbose) {
 		this(null, null, COMPLETE, verbose);
 	}

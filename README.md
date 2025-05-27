@@ -68,7 +68,7 @@ This will generate a JAR files in the `bin` directory.
 The main class for executing the utilities is:
 
 ```java
-ciat.agrobio.javautils.JavaUtils
+com.gkano.bioinfo.javautils.JavaUtils
 ```
 
 You can run the utilities via the command line or integrate them into other Java applications.

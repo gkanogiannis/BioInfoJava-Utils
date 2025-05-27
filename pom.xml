@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
-    <version>1.13.32</version>
+    <version>1.99.0</version>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
@@ -17,7 +17,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>ciat.agrobio.javautils.JavaUtils</mainClass>
+                            <mainClass>com.gkano.bioinfo.javautils.JavaUtils</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -28,9 +28,9 @@
                 <configuration>
                     <release>8</release>
                     <excludes>
-                        <exclude>ciat/agrobio/javautils/UtilVCFKeepSamples.java</exclude>                    
-                        <exclude>ciat/agrobio/javautils/UtilVCFNonrelated.java</exclude>
-                        <exclude>ciat/agrobio/javautils/UtilVCFRemoveClones.java</exclude>
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFKeepSamples.java</exclude>                    
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFNonrelated.java</exclude>
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFRemoveClones.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
@@ -74,7 +74,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>ciat.agrobio.javautils.JavaUtils</mainClass>
+                            <mainClass>com.gkano.bioinfo.javautils.JavaUtils</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

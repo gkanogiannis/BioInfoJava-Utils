@@ -449,6 +449,18 @@ public class HierarchicalCluster {
         return hclusteringTree(sampleNames, distances, null);
     }
 
+    public String hclusteringTree(String[] sampleNames, float[][] distances, PrintStream ops) {
+        int rows = distances.length;
+        int cols = distances[0].length;
+        double[][] output = new double[rows][cols];
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                output[i][j] = (double) distances[i][j];
+            }
+        }
+        return hclusteringTree(sampleNames, output, ops);
+    }
+
     public String hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) {
         try {
             ops = ops == null ? System.err : ops;

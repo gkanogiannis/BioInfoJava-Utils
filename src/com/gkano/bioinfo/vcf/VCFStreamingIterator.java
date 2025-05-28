@@ -154,5 +154,3 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
         }
     }
 }
-
-

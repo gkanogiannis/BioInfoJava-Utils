@@ -21,136 +21,132 @@
  */
 package com.gkano.bioinfo.vcf;
 
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 
-public class VariantProcessor implements Runnable {
+public class VariantProcessor<T> implements Runnable {
 
-	private static AtomicInteger variantCount = new AtomicInteger(0);
-	
-	private static AtomicInteger taskCount = new AtomicInteger(0);
-	
-	private final int id = taskCount.getAndIncrement();
-	private VariantManager vm = null;
-	private VCFManager vcfm = null;
-	private CountDownLatch startSignal = null;
-	private CountDownLatch doneSignal = null;
-	
-	//private ConcurrentSkipListSet<String> variantNames;
-	
-	private boolean verbose = false;
+    private static AtomicInteger variantCount = new AtomicInteger(0);
 
-	public static void resetCounters(){
-		variantCount = new AtomicInteger(0);
-		taskCount = new AtomicInteger(0);
-	}
-	
-	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
-		this(vm, vcfm, startSignal, doneSignal, false);
-	}
+    private static AtomicInteger taskCount = new AtomicInteger(0);
 
-	public VariantProcessor(VariantManager vm, VCFManager vcfm, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
-		this.vm = vm;
-		this.vcfm = vcfm;
-		this.startSignal = startSignal;
-		this.doneSignal = doneSignal;
-		this.verbose = verbose;
-	}
-	
-	public static AtomicInteger getVariantCount() {
-		return variantCount;
-	}
+    private final int id = taskCount.getAndIncrement();
+    private VariantManager<T> vm = null;
+    private VCFManager<T> vcfm = null;
+    private CountDownLatch startSignal = null;
+    private CountDownLatch doneSignal = null;
 
-	public void setStartSignal(CountDownLatch startSignal) {
-		this.startSignal = startSignal;
-	}
+    private int[][] localDotProd;
+    private int[] localNorm;
 
-	public void setDoneSignal(CountDownLatch doneSignal) {
-		this.doneSignal = doneSignal;
-	}
+    private boolean verbose = false;
 
-	public int getId() {
-		return id;
-	}
+    public static void resetCounters() {
+        variantCount = new AtomicInteger(0);
+        taskCount = new AtomicInteger(0);
+    }
 
-	public void run() {
-		try{
-			Logger.setVerbose(verbose);
-			startSignal.await();
-			boolean done = false;
-			while(!done){
-				Variant variant = vm.getNextVariantRaw();
-				int numSamples = vm.getNumSamples();
-				byte ploidy = vm.getPloidy();
-				if(variant==null){
-					if(!vm.hasMoreRaw() && vcfm.isDone()){
-						done = true;
-						break;
-					}
-					continue;
-				}
-				//Process variant data
-				int count = variantCount.incrementAndGet();
-				int step = GeneralTools.getAdaptiveVariantStep(count);
-				if (count % step == 0 && verbose) {
-					Logger.infoCarret(this, "VariantProcessor ("+id+"):\t"+count);
-				}
-				
-				byte numAlleles=0;
-				int indexGT = Arrays.asList(variant.getFormat().split(":")).indexOf("GT");
-				
-				if(ploidy==1) {
-					byte[][] variantDataRaw = variant.getDataRaw();
-					byte[] variantDataSamplesP1 = new byte[numSamples];
-					variant.setDataSamplesP1(variantDataSamplesP1);
-					String GT;
-					byte[] GTCode;
-					for(int i=0; i<numSamples; i++) {
-						GT = new String(variantDataRaw[i+9]).split(":")[indexGT];
-						GTCode = GenotypeEncoder.encodeGT(GT,ploidy);
-						variantDataSamplesP1[i] = GTCode[0];
-						if(GTCode[ploidy]>numAlleles) {
-							numAlleles = GTCode[ploidy];
-						}
-					}
-				}
-				else if(ploidy==2) {
-					byte[][] variantDataRaw = variant.getDataRaw();
-					byte[] variantDataSamplesP1 = new byte[numSamples];
-					byte[] variantDataSamplesP2 = new byte[numSamples];
-					variant.setDataSamplesP1(variantDataSamplesP1);
-					variant.setDataSamplesP2(variantDataSamplesP2);
-					String GT;
-					byte[] GTCode;
-					for(int i=0; i<numSamples; i++) {
-						GT = new String(variantDataRaw[i+9]).split(":")[indexGT];
-						GTCode = GenotypeEncoder.encodeGT(GT,ploidy);
-						variantDataSamplesP1[i] = GTCode[0];
-						variantDataSamplesP2[i] = GTCode[1];
-						if(GTCode[ploidy]>numAlleles) {
-							numAlleles = GTCode[ploidy];
-						}
-					}
-				}
-				else {
-					System.err.println("Ploidy "+ploidy+" is not yet supported.");
-					System.exit(ploidy);
-				}
-				variant.setNumAlleles(numAlleles);
-				if(vm.isCleanVariantData()) {
-					variant.cleanDataRaw();
-				}
-				vm.putVariantQueue(variant);
-			}
-			doneSignal.countDown();
-		}
-		catch(Exception e){
-			e.printStackTrace();
-		}
-	}
+    public VariantProcessor(VariantManager<T> vm, VCFManager<T> vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
+        this(vm, vcfm, startSignal, doneSignal, false);
+    }
+
+    public VariantProcessor(VariantManager<T> vm, VCFManager<T> vcfm, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
+        this.vm = vm;
+        this.vcfm = vcfm;
+        this.startSignal = startSignal;
+        this.doneSignal = doneSignal;
+        this.verbose = verbose;
+    }
+
+    public static AtomicInteger getVariantCount() {
+        return variantCount;
+    }
+
+    public void setStartSignal(CountDownLatch startSignal) {
+        this.startSignal = startSignal;
+    }
+
+    public void setDoneSignal(CountDownLatch doneSignal) {
+        this.doneSignal = doneSignal;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    @SuppressWarnings("UseSpecificCatch")
+    @Override
+    public void run() {
+        try {
+            Logger.setVerbose(verbose);
+            startSignal.await();
+
+            int numSamples = vm.getNumSamples();
+            int ploidy = vm.getPloidy();
+            int maxAlleles = vm.getMaxAlleles();
+            //int bitsPerGenotype = ploidy * maxAlleles;
+
+            localDotProd = new int[numSamples][numSamples];
+            localNorm = new int[numSamples];
+
+            T variant;
+            int[][] variantEncoded;
+
+            while (true) {
+                variant = vm.getNextVariantRaw();
+                if (variant == null) {
+                    if (!vm.hasMoreRaw() && vcfm.isDone()) {
+                        break;
+                    }
+                    LockSupport.parkNanos(100_000);
+                    continue;
+                }
+                //Process variant data
+                int count = variantCount.incrementAndGet();
+                int step = GeneralTools.getAdaptiveVariantStep(count);
+                if (count % step == 0 && verbose) {
+                    Logger.infoCarret(this, "VariantProcessor (" + id + "):\t" + count);
+                }
+
+                variantEncoded = SNPEncoder.encodeSNPOneHot((String) variant, ploidy, maxAlleles, vm.getEncodingCache(), numSamples);
+
+                for (int i = 0; i < numSamples; i++) {
+                    int[] di = variantEncoded[i];
+                    //float norm = (float) SNPEncoder.dotProd(di, di, bitsPerGenotype);
+                    int norm = 0;
+                    for (int k = 0; k < di.length; k++) {
+                        norm += Integer.bitCount(di[k] & di[k]);
+                    }
+                    localNorm[i] += norm;
+
+                    for (int j = i; j < numSamples; j++) {
+                        int[] dj = variantEncoded[j];
+                        //float dotProd = (i == j) ? norm : (float) SNPEncoder.dotProd(di, variantEncoded[j], bitsPerGenotype);
+                        int dotProd = 0;
+                        for (int k = 0; k < di.length; k++) {
+                            dotProd += Integer.bitCount(di[k] & dj[k]);
+                        }
+                        localDotProd[i][j] += dotProd;
+                    }
+                }
+            }
+            doneSignal.countDown();
+        } catch (Exception e) {
+            Logger.error(this, e.getMessage());
+            doneSignal.countDown();
+        }
+    }
+
+    public int[][] getLocalDotProd() {
+        return localDotProd;
+    }
+
+    public int[] getLocalNorm() {
+        return localNorm;
+    }
 
 }

@@ -53,7 +53,7 @@ import java.util.zip.GZIPInputStream;
 public class GeneralTools {
 
     public static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-    public static final DecimalFormat decimalFormat = new DecimalFormat("#.############", new DecimalFormatSymbols(Locale.US));
+    public static final DecimalFormat decimalFormat = new DecimalFormat("#.######", new DecimalFormatSymbols(Locale.US));
 
     private static OfInt prng;
 

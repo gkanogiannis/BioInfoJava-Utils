@@ -1,6 +1,6 @@
 /*
  *
- * BioInfoJava-Utils 
+ * BioInfoJava-Utils ciat.agrobio.io.VCFDecoder
  *
  * Copyright (C) 2021 Anestis Gkanogiannis <anestis@gkanogiannis.com>
  *
@@ -22,128 +22,108 @@
 package com.gkano.bioinfo.vcf;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class VCFDecoder implements VCFDecoderInterface<byte[][]> {
-	private static final byte LF = 10;
-	private static final byte TAB = 9;
-	private static final byte CR = 13;
-	//private boolean skip = false;
+public class VCFDecoder implements VCFDecoderInterface<String> {
 
-	public VCFDecoder() {
-	}
+    private static final byte LF = 10;
+    private static final byte TAB = 9;
+    private static final byte CR = 13;
+    //private boolean skip = false;
 
-    @Override
-	public byte[][] decode(ByteBuffer buffer) {
-		int lineStartPos = buffer.position();
-		int limit = buffer.limit();
-		int crs = 0;
-		while (buffer.hasRemaining()) {
-			byte b = buffer.get();
-			if(b == CR) {
-				crs++;
-			}
-			else if (b == LF) { // reached line feed so parse line
-				int lineEndPos = buffer.position();
-				// set positions for one row duplication
-				if (buffer.limit() < lineEndPos + 1) {
-					buffer.position(lineStartPos).limit(lineEndPos);
-				} else {
-					buffer.position(lineStartPos).limit(lineEndPos + 1);
-				}
-				
-				byte[] line = parseBytes(buffer, lineEndPos - lineStartPos - 1, crs);
-				crs = 0;
-				
-				if (line != null) {
-					// reset main buffer
-					buffer.position(lineEndPos);
-					buffer.limit(limit);
-					// set start after LF
-					lineStartPos = lineEndPos;
-				}
-				if(line.length==0){
-					continue;
-				}
-				
-				/*
-				if(line[0] == '>' || line[0] == '@'){
-					skip = false;
-				}
-				else if(line[0] == '+'){
-					skip = true;
-				}
-				*/
-				
-				/*
-				if(skip){
-					continue;
-				}
-				else{
-					return line;
-				}
-				*/
-				
-				byte[][] split = splitInTabs(line);
-				line = null;
-				return split;
-			}
-		}
-		buffer.position(lineStartPos);
-		return null;
-	}
-
-	private byte[] parseBytes(ByteBuffer buffer, int length, int crs) {
-		byte[] bytes = new byte[length-crs];
-		for (int i = 0; i < length; i++) {
-			byte b = buffer.get();
-			if(b != CR)
-				bytes[i] = b;
-		}
-		return bytes;
-	}
-	
-	private byte[][] splitInTabs(byte[] bytes) {
-		int numTabs = 0;
-		ArrayList<Integer> tabs = new ArrayList<Integer>();
-		for(int i = 0; i < bytes.length; i++) {
-			if(bytes[i]==TAB) {
-				numTabs++;
-				tabs.add(i);
-			}
-		}
-		
-		byte[][] ret;
-		if(numTabs==0 || (bytes[0]=='#' && bytes[1]=='#')) {
-			ret = new byte[1][bytes.length];
-			ret[0] = Arrays.copyOf(bytes, bytes.length);
-		}
-		else {
-			ret = new byte[numTabs+1][];
-			//first
-			ret[0] = Arrays.copyOfRange(bytes, 0, tabs.get(0));
-			for(int i = 1; i < numTabs; i++) {
-				ret[i] = Arrays.copyOfRange(bytes, tabs.get(i-1)+1, tabs.get(i));
-			}
-			//last
-			ret[numTabs] = Arrays.copyOfRange(bytes, tabs.get(numTabs-1)+1, bytes.length);
-		}
-		tabs.clear();
-		tabs = null;
-		bytes = null;
-		return ret;
-	}
+    public VCFDecoder() {
+    }
 
     @Override
-    public byte[][] decode(String line) {
-        return splitInTabs(line.getBytes());
+    public String decode(ByteBuffer buffer) {
+        int lineStartPos = buffer.position();
+        int limit = buffer.limit();
+        int crs = 0;
+        while (buffer.hasRemaining()) {
+            byte b = buffer.get();
+            if (b == CR) {
+                crs++;
+            } else if (b == LF) { // reached line feed so parse line
+                int lineEndPos = buffer.position();
+                // set positions for one row duplication
+                if (buffer.limit() < lineEndPos + 1) {
+                    buffer.position(lineStartPos).limit(lineEndPos);
+                } else {
+                    buffer.position(lineStartPos).limit(lineEndPos + 1);
+                }
+
+                byte[] line = parseBytes(buffer, lineEndPos - lineStartPos - 1, crs);
+                crs = 0;
+
+                if (line != null) {
+                    // reset main buffer
+                    buffer.position(lineEndPos);
+                    buffer.limit(limit);
+                    // set start after LF
+                    lineStartPos = lineEndPos;
+                }
+                if (line != null && line.length == 0) {
+                    continue;
+                }
+
+                return new String(line, StandardCharsets.UTF_8);
+            }
+        }
+        buffer.position(lineStartPos);
+        return null;
+    }
+
+    private byte[] parseBytes(ByteBuffer buffer, int length, int crs) {
+        byte[] bytes = new byte[length - crs];
+        for (int i = 0; i < length; i++) {
+            byte b = buffer.get();
+            if (b != CR) {
+                bytes[i] = b;
+            }
+        }
+        return bytes;
+    }
+
+    @SuppressWarnings("unused")
+    private byte[][] splitInTabs(byte[] bytes) {
+        int numTabs = 0;
+        ArrayList<Integer> tabs = new ArrayList<>();
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] == TAB) {
+                numTabs++;
+                tabs.add(i);
+            }
+        }
+
+        byte[][] ret;
+        if (numTabs == 0 || (bytes[0] == '#' && bytes[1] == '#')) {
+            ret = new byte[1][bytes.length];
+            ret[0] = Arrays.copyOf(bytes, bytes.length);
+        } else {
+            ret = new byte[numTabs + 1][];
+            //first
+            ret[0] = Arrays.copyOfRange(bytes, 0, tabs.get(0));
+            for (int i = 1; i < numTabs; i++) {
+                ret[i] = Arrays.copyOfRange(bytes, tabs.get(i - 1) + 1, tabs.get(i));
+            }
+            //last
+            ret[numTabs] = Arrays.copyOfRange(bytes, tabs.get(numTabs - 1) + 1, bytes.length);
+        }
+        tabs.clear();
+        return ret;
+    }
+
+    @Override
+    public String decode(String line) {
+        return line;
     }
 }
 
 interface VCFDecoderInterface<T> {
 
-	public T decode(ByteBuffer buffer);
+    public T decode(ByteBuffer buffer);
 
-	public T decode(String line);
+    public T decode(String line);
 }

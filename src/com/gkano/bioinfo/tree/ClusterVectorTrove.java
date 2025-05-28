@@ -261,6 +261,7 @@ public class ClusterVectorTrove {
             isOnHi2 = false;
         }
 
+                @Override
 		public boolean hasNext() {
 			if(isOnLo1){
         		hasNext = (currentLo1 > 0);
@@ -299,6 +300,7 @@ public class ClusterVectorTrove {
         	return hasNext;
 		}
 
+                @Override
 		public void advance() {
 			if(!hasNext){
     			return;
@@ -322,6 +324,7 @@ public class ClusterVectorTrove {
         	}
 		}
 		
+                @Override
 		public long key() {
 			if(isOnLo1){
         		return iteratorLo1.key();
@@ -338,6 +341,7 @@ public class ClusterVectorTrove {
 			return 0;
 		}
 		
+                @Override
 		public double value() {
 			if(isOnLo1){
         		return iteratorLo1.value();
@@ -356,8 +360,10 @@ public class ClusterVectorTrove {
 
 		
 		//Unused
+                @Override
 		public void remove() {
 		}
+                @Override
 		public double setValue(double arg0) {
 			return 0.0;
 		}	

@@ -24,7 +24,9 @@ package com.gkano.bioinfo.javautils;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,7 +35,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.gkano.bioinfo.tree.HierarchicalCluster;
 import com.gkano.bioinfo.var.Logger;
-import com.gkano.bioinfo.vcf.CalculateDistancesCOSINE;
+import com.gkano.bioinfo.vcf.SNPEncoder;
 import com.gkano.bioinfo.vcf.VCFManager;
 import com.gkano.bioinfo.vcf.VariantManager;
 import com.gkano.bioinfo.vcf.VariantProcessor;
@@ -68,17 +70,17 @@ public class UtilVCF2TREE {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 	
+	@SuppressWarnings("unused")
 	@Parameter(names = { "--ignoreMissing", "-m" })
 	private boolean ignoreMissing = false;
 	
+	@SuppressWarnings("unused")
 	@Parameter(names={"--onlyHets", "-h"})
 	private boolean onlyHets = false;
 	
+	@SuppressWarnings("unused")
 	@Parameter(names={"--ignoreHets", "-g"})
 	private boolean ignoreHets = false;
-
-	@Parameter(names={"--useMappedBuffer"}, description="Use MappedByteBuffer for reading input files. Not compatible with piped input.")
-	private boolean useMappedBuffer = false;
 
 	public void go() {
 		try {
@@ -116,37 +118,31 @@ public class UtilVCF2TREE {
 
 			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
 
-			//Map<Integer, VariantProcessor> variantProcessors = new HashMap<>();
-			VariantManager vm = new VariantManager();
-			VCFManager vcfm = new VCFManager(vm, inputFileNames, startSignal, doneSignal, useMappedBuffer, verbose);
-			pool.execute(vcfm);
+			Map<Integer, VariantProcessor<String>> variantProcessors = new HashMap<>();
+			VariantManager<String> vm = new VariantManager<>(10*usingThreads);
+			
+			VCFManager<String> vcfm = new VCFManager<>(vm, SNPEncoder.StringToStringParser, inputFileNames, startSignal, doneSignal, verbose);
+            pool.execute(vcfm);
 
 			VariantProcessor.resetCounters();
 			// Starting threads
 			for (int i = 0; i < usingThreads; i++) {
-				VariantProcessor vp = new VariantProcessor(vm, vcfm, startSignal, doneSignal, verbose);
-				//variantProcessors.put(vp.getId(), vp);
+				VariantProcessor<String> vp = new VariantProcessor<>(vm, vcfm, startSignal, doneSignal, verbose);
+				variantProcessors.put(vp.getId(), vp);
 				pool.execute(vp);
 			}
 
 			doneSignal.await();
 			pool.shutdown();
 			
-			vm.populateSampleVariant();
-
-			List<String> sampleNames = new ArrayList<>();
-			for (int i = 9; i < vcfm.getHeaderData().length; i++) {
-				sampleNames.add(new String(vcfm.getHeaderData()[i]));
-			}
-
+			List<String> sampleNames = SNPEncoder.getSampleNamesFromHeader(vcfm.getHeaderData());
+			
 			if(verbose) System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
 
 			// Calculate distances
-			//double[][] distances = SampleVariantTools.calculateDistances(samplesToVariantsData, sampleNames, vcfm, ignoreHets, onlyHets, false);
-			CalculateDistancesCOSINE.resetCounters();
-			CalculateDistancesCOSINE fj = new CalculateDistancesCOSINE(verbose);
-			double[][] distances = fj.calculateDistances(usingThreads, sampleNames, vm, vcfm, ignoreHets, onlyHets, ignoreMissing);
-			
+            //double[][] distances = vm.calculateCosineDistances();
+			float[][] distances = vm.reduce(variantProcessors.values());
+
 			//HCluster tree
 			HierarchicalCluster hc = new HierarchicalCluster(verbose);
 			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[0]), distances, null);

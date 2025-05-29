@@ -22,7 +22,6 @@
 package com.gkano.bioinfo.javautils;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -67,23 +66,15 @@ public class UtilDIST2TREE {
 	public void go() {
 		try {
 			//Output PrintStream
-			PrintStream ops = System.out;
-			if(outputFile != null) {
-				try {
-					ops = new PrintStream(outputFile);
-				} 
-				catch (FileNotFoundException e) {
-					System.err.println("Error: Cannot write to " + outputFile);
-                	return;
-				}
-			}
+			PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
 
 			// Select Input File
             String inputFileName = namedInputFile!=null?namedInputFile:positionalInputFile;
 
 			if (inputFileName == null) {
-                System.err.println("Error: No input file provided.");
-                return;
+				Logger.error(this, "No input file provided.");
+                System.exit(1);
+				return;
             }
 
 			//int cpus = Runtime.getRuntime().availableProcessors();
@@ -107,11 +98,11 @@ public class UtilDIST2TREE {
 			HierarchicalCluster hc = new HierarchicalCluster(verbose);
 			String treeString = hc.hclusteringTree((String[])data[1], (double[][])data[0], null);
 			ops.println(treeString);
-			ops.flush();
 			ops.close();
 		} 
 		catch (IOException e) {
 			Logger.error(this, e.getMessage());
+			System.exit(1);
 		}
 	}
 	

@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
 
+import com.gkano.bioinfo.var.Logger;
+
 public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
 
     private final List<String> inputPaths;
@@ -67,7 +69,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             currentPathIndex++;
             if (currentPathIndex < inputPaths.size()) {
                 String path = inputPaths.get(currentPathIndex);
-                if(verbose) System.err.println("Reading from: " + path);
+                if(verbose) Logger.info(this, "Reading from: " + path);
 
                 InputStream in;
                 if (path.equals("-")) {

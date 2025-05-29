@@ -24,9 +24,11 @@ package com.gkano.bioinfo.var;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -48,8 +50,6 @@ import java.util.Map;
 import java.util.PrimitiveIterator.OfInt;
 import java.util.zip.GZIPInputStream;
 
-//import org.mapdb.DB;
-//import org.mapdb.DBMaker;
 public class GeneralTools {
 
     public static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
@@ -83,24 +83,16 @@ public class GeneralTools {
         return prng.nextInt();
     }
 
-    /*
-	private static DB db = null;
-	
-	static{
-		db = DBMaker
-				.newHeapDB()
-			    .transactionDisable()
-			    .asyncWriteFlushDelay(100)
-			    .make();
-		//db = DBMaker.newMemoryDB().asyncWriteEnable(). /*cacheHardRefEnable()./transactionDisable().make();
-		//db = DBMaker.newAppendFileDB(new File("/env/cns/bigtmp1/agkanogi/mapdb.temp")).closeOnJvmShutdown().transactionDisable().make();
-		//db = DBMaker.newFileDB(new File("/env/cns/bigtmp1/agkanogi/mapdb.temp")).closeOnJvmShutdown().randomAccessFileEnable().transactionDisable().make();
-	}
-	
-	public static DB getDB(){
-		return db;
-	}
-     */
+    public static PrintStream getPrintStreamOrExit(String outputFile, Object context) {
+        try {
+            return (outputFile == null) ? System.out : new PrintStream(outputFile);
+        } catch (FileNotFoundException | SecurityException e) {
+            Logger.error(context, "Cannot write to " + outputFile);
+            System.exit(1);
+            return null;
+        }
+    }
+
     public static String time() {
         Calendar cal = Calendar.getInstance();
         return dateFormat.format(cal.getTime());
@@ -447,22 +439,22 @@ public class GeneralTools {
 
     public static int getAdaptiveVariantStep(int count) {
         if (count < 10_000) {
-            return 100; 
-        }else if (count < 100_000) {
-            return 1_000; 
-        }else if (count < 1_000_000) {
-            return 10_000; 
-        }else {
+            return 100;
+        } else if (count < 100_000) {
+            return 1_000;
+        } else if (count < 1_000_000) {
+            return 10_000;
+        } else {
             return 100_000;
         }
     }
 
     public static int getAdaptiveSampleStep(int count) {
         if (count < 100) {
-            return 10; 
-        }else if (count < 1_000) {
-            return 100; 
-        }else {
+            return 10;
+        } else if (count < 1_000) {
+            return 100;
+        } else {
             return 1_000;
         }
     }

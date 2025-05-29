@@ -22,7 +22,6 @@
 package com.gkano.bioinfo.javautils;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.TreeMap;
@@ -78,21 +77,14 @@ public class UtilDIST2Clusters {
     public void go() {
         try {
             //Output PrintStream
-            PrintStream ops = System.out;
-            if (outputFile != null) {
-                try {
-                    ops = new PrintStream(outputFile);
-                } catch (FileNotFoundException e) {
-                    Logger.error(this, "Cannot write to " + outputFile);
-                    return;
-                }
-            }
+            PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
 
             // Select Input File
             String inputFileName = namedInputFile != null ? namedInputFile : positionalInputFile;
 
             if (inputFileName == null) {
                 Logger.error(this, "No input file provided.");
+                System.exit(1);
                 return;
             }
 
@@ -120,6 +112,7 @@ public class UtilDIST2Clusters {
             ops.close();
         } catch (IOException e) {
             Logger.error(this, e.getMessage());
+            System.exit(1);
         }
     }
 

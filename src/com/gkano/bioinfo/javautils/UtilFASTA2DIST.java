@@ -21,7 +21,6 @@
  */
 package com.gkano.bioinfo.javautils;
 
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,16 +84,7 @@ public class UtilFASTA2DIST {
 	public void go() {
 		try {
 			//Output PrintStream
-			PrintStream ops = System.out;
-			if(outputFile != null) {
-				try {
-					ops = new PrintStream(outputFile);
-				} 
-				catch (FileNotFoundException e) {
-					Logger.error(this, "Cannot write to " + outputFile);
-                	return;
-				}
-			}
+			PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
 
 			// Merge all FASTA inputs into one list
             List<String> inputFileNames = new ArrayList<>();
@@ -102,8 +92,9 @@ public class UtilFASTA2DIST {
             inputFileNames.addAll(namedInputFiles);
 
 			if (inputFileNames.isEmpty()) {
-                System.err.println("Error: No FASTA input files provided.");
-                return;
+				Logger.error(this, "No FASTA input files provided.");
+                System.exit(1);
+				return;
             }
 
 			int cpus = Runtime.getRuntime().availableProcessors();

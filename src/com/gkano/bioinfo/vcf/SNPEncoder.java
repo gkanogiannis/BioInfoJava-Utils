@@ -21,9 +21,8 @@
  */
 package com.gkano.bioinfo.vcf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -37,7 +36,7 @@ public class SNPEncoder {
      * @param maxNumAlleles global maximum number of alleles (for padding)
      * @return 2D array: each row is one sample's encoded genotype vector
      */
-    public static int[][] encodeSNPOneHot(String snpLine, int ploidy, int maxAlleles, Map<String, int[]> encodingCache, int numSamples) {
+    public static int[][] encodeSNPOneHot(String snpLine, int ploidy, int maxAlleles, Map<String, int[]> encodingCache, int numSamples) throws IllegalArgumentException {
         //String[] fields = snpLine.split("\t");
         int[][] encoded = new int[numSamples][];
         int expectedColumns = numSamples + 9;
@@ -56,7 +55,9 @@ public class SNPEncoder {
         int pos = 0;
         while (pos < formatString.length()) {
             int sep = formatString.indexOf(':', pos);
-            if (sep == -1) sep = formatString.length();
+            if (sep == -1) {
+                sep = formatString.length();
+            }
             String token = formatString.substring(pos, sep);
             if (token.equals("GT")) {
                 gtIndex = fieldIdx;
@@ -138,7 +139,7 @@ public class SNPEncoder {
             }
 
             String gt = parts[gtIndex];
-            if (gt == null || gt.equals(".") || gt.contains(".")) {
+            if (gt == null) {
                 continue;
             }
 
@@ -159,46 +160,14 @@ public class SNPEncoder {
         return new int[]{maxPloidy, maxAlleleIndex + 1}; // +1 to get allele count, not max index
     }
 
-    /**
-     * Extracts number of samples from the #CHROM header line of a VCF file.
-     *
-     * @param headerLine a VCF header line starting with "#CHROM"
-     * @return number of sample fields
-     */
-    public static int getNumSamplesFromHeader(String headerLine) {
-        if (headerLine == null || !headerLine.startsWith("#CHROM")) {
-            throw new IllegalArgumentException("Line does not start with #CHROM: " + headerLine);
-        }
-
-        String[] fields = headerLine.split("\t", -1);
-        return Math.max(0, fields.length - 9);
-    }
-
-    public static List<String> getSampleNamesFromHeader(String headerLine) {
-        if (headerLine == null || !headerLine.startsWith("#CHROM")) {
-            throw new IllegalArgumentException("Line does not start with #CHROM: " + headerLine);
-        }
-
-        String[] fields = headerLine.split("\t", -1);
-        if (fields.length <= 9) {
-            // No samples present
-            return Collections.emptyList();
-        }
-
-        return Arrays.asList(Arrays.copyOfRange(fields, 9, fields.length));
-    }
-
-    /*
     public static final Function<String, byte[][]> StringToByteMatrixParser = line
             -> Arrays.stream(line.split("\t", -1)) // Keep empty trailing fields
                     .map(field -> field.getBytes(StandardCharsets.UTF_8))
                     .toArray(byte[][]::new);
-    */
 
     public static final Function<String, String> StringToStringParser = line
             -> line;
 
-   
     public static int dotProd(int[] a, int[] b, int bitsPerGenotype) {
         int sum = 0;
         for (int idx = 0; idx < bitsPerGenotype; idx++) {

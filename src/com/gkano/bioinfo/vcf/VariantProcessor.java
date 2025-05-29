@@ -30,64 +30,50 @@ import com.gkano.bioinfo.var.Logger;
 
 public class VariantProcessor<T> implements Runnable {
 
-    private static AtomicInteger variantCount = new AtomicInteger(0);
+    private final VCFManager<T> vcfm;
+    private final CountDownLatch startSignal;
+    private final CountDownLatch doneSignal;
+    private boolean verbose = false;
 
-    private static AtomicInteger taskCount = new AtomicInteger(0);
-
-    private final int id = taskCount.getAndIncrement();
-    private VariantManager<T> vm = null;
-    private VCFManager<T> vcfm = null;
-    private CountDownLatch startSignal = null;
-    private CountDownLatch doneSignal = null;
+    private static AtomicInteger processorCount = new AtomicInteger(0);
+    private final int id = processorCount.getAndIncrement();
 
     private int[][] localDotProd;
     private int[] localNorm;
 
-    private boolean verbose = false;
-
     public static void resetCounters() {
-        variantCount = new AtomicInteger(0);
-        taskCount = new AtomicInteger(0);
+        processorCount = new AtomicInteger(0);
     }
 
-    public VariantProcessor(VariantManager<T> vm, VCFManager<T> vcfm, CountDownLatch startSignal, CountDownLatch doneSignal) {
-        this(vm, vcfm, startSignal, doneSignal, false);
+    public VariantProcessor(
+            VCFManager<T> vcfm,
+            CountDownLatch startSignal,
+            CountDownLatch doneSignal
+    ) {
+        this(vcfm, startSignal, doneSignal, false);
     }
 
-    public VariantProcessor(VariantManager<T> vm, VCFManager<T> vcfm, CountDownLatch startSignal, CountDownLatch doneSignal, boolean verbose) {
-        this.vm = vm;
+    public VariantProcessor(
+            VCFManager<T> vcfm,
+            CountDownLatch startSignal,
+            CountDownLatch doneSignal,
+            boolean verbose
+    ) {
         this.vcfm = vcfm;
         this.startSignal = startSignal;
         this.doneSignal = doneSignal;
         this.verbose = verbose;
     }
 
-    public static AtomicInteger getVariantCount() {
-        return variantCount;
-    }
-
-    public void setStartSignal(CountDownLatch startSignal) {
-        this.startSignal = startSignal;
-    }
-
-    public void setDoneSignal(CountDownLatch doneSignal) {
-        this.doneSignal = doneSignal;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    @SuppressWarnings("UseSpecificCatch")
     @Override
     public void run() {
         try {
             Logger.setVerbose(verbose);
             startSignal.await();
 
-            int numSamples = vm.getNumSamples();
-            int ploidy = vm.getPloidy();
-            int maxAlleles = vm.getMaxAlleles();
+            int numSamples = vcfm.getNumSamples();
+            int ploidy = vcfm.getPloidy();
+            int maxAlleles = vcfm.getMaxAlleles();
             //int bitsPerGenotype = ploidy * maxAlleles;
 
             localDotProd = new int[numSamples][numSamples];
@@ -97,22 +83,27 @@ public class VariantProcessor<T> implements Runnable {
             int[][] variantEncoded;
 
             while (true) {
-                variant = vm.getNextVariantRaw();
+                variant = vcfm.getNextVariantRaw();
                 if (variant == null) {
-                    if (!vm.hasMoreRaw() && vcfm.isDone()) {
+                    if (!vcfm.hasMoreRaw() && vcfm.isDone()) {
                         break;
                     }
                     LockSupport.parkNanos(100_000);
                     continue;
                 }
                 //Process variant data
-                int count = variantCount.incrementAndGet();
+                int count = vcfm.getCurrVariantCount();
                 int step = GeneralTools.getAdaptiveVariantStep(count);
                 if (count % step == 0 && verbose) {
                     Logger.infoCarret(this, "VariantProcessor (" + id + "):\t" + count);
                 }
 
-                variantEncoded = SNPEncoder.encodeSNPOneHot((String) variant, ploidy, maxAlleles, vm.getEncodingCache(), numSamples);
+                try {
+                    variantEncoded = SNPEncoder.encodeSNPOneHot((String) variant, ploidy, maxAlleles, vcfm.getEncodingCache(), numSamples);    
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                
 
                 for (int i = 0; i < numSamples; i++) {
                     int[] di = variantEncoded[i];
@@ -135,10 +126,14 @@ public class VariantProcessor<T> implements Runnable {
                 }
             }
             doneSignal.countDown();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
             doneSignal.countDown();
         }
+    }
+
+    public int getId() {
+        return id;
     }
 
     public int[][] getLocalDotProd() {

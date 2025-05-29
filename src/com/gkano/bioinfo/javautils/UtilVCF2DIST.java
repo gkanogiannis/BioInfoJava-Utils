@@ -21,15 +21,11 @@
  */
 package com.gkano.bioinfo.javautils;
 
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -37,8 +33,6 @@ import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 import com.gkano.bioinfo.vcf.SNPEncoder;
 import com.gkano.bioinfo.vcf.VCFManager;
-import com.gkano.bioinfo.vcf.VariantManager;
-import com.gkano.bioinfo.vcf.VariantProcessor;
 
 @SuppressWarnings("FieldMayBeFinal")
 @Parameters(commandDescription = "VCF2DIST")
@@ -85,90 +79,41 @@ public class UtilVCF2DIST {
     public void go() {
         try {
             //Output PrintStream
-            PrintStream ops = System.out;
-            if (outputFile != null) {
-                try {
-                    ops = new PrintStream(outputFile);
-                } catch (FileNotFoundException e) {
-                    Logger.error(this, "Cannot write to " + outputFile);
-                    return;
-                }
-            }
+            PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
 
-            // Merge all VCF inputs into one list
-            List<String> inputFileNames = new ArrayList<>();
-            inputFileNames.addAll(positionalInputFiles);
-            inputFileNames.addAll(namedInputFiles);
-
-            if (inputFileNames.isEmpty()) {
-                Logger.error(this, "No VCF input files provided.");
-                return;
-            }
-
-            int cpus = Runtime.getRuntime().availableProcessors();
-            int usingThreads = (cpus < (numOfThreads + 0) ? cpus : (numOfThreads + 0));
-            if (verbose) {
-                System.err.println("cpus=" + cpus);
-            }
-            if (verbose) {
-                System.err.println("using=" + usingThreads);
-            }
-
-            CountDownLatch startSignal = new CountDownLatch(1);
-            CountDownLatch doneSignal = new CountDownLatch(usingThreads + 1);
-
-            //if(verbose) System.err.println(GeneralTools.time() + " START ");
-            ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
-
-            Map<Integer, VariantProcessor<String>> variantProcessors = new HashMap<>();
-            VariantManager<String> vm = new VariantManager<>(10*usingThreads);
-
-            VCFManager<String> vcfm = new VCFManager<>(vm, SNPEncoder.StringToStringParser, inputFileNames, startSignal, doneSignal, verbose);
-            pool.execute(vcfm);
-
-            VariantProcessor.resetCounters();
-            // Starting threads
-            for (int i = 0; i < usingThreads; i++) {
-                VariantProcessor<String> vp = new VariantProcessor<>(vm, vcfm, startSignal, doneSignal, verbose);
-                variantProcessors.put(vp.getId(), vp);
-                pool.execute(vp);
-            }
-
-            doneSignal.await();
-            pool.shutdown();
-
-            List<String> sampleNames = SNPEncoder.getSampleNamesFromHeader(vcfm.getHeaderData());
+            VCFManager<String> vcfm = new VCFManager<>(
+                    Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
+                    numOfThreads,
+                    10 * numOfThreads,
+                    SNPEncoder.StringToStringParser,
+                    verbose);
+            vcfm.init();
+            new Thread(vcfm).start();
+            vcfm.awaitFinalization();
 
             if (verbose) {
-                System.err.printf("\rProcessed variants : \t%8d\n", VariantProcessor.getVariantCount().get());
+                Logger.info(this, "Processed variants :\t" + vcfm.getNumVariants());
             }
 
             // Calculate distances
-            //double[][] distances = vm.calculateCosineDistances();
-            float[][] distances = vm.reduce(variantProcessors.values());
+            float[][] distances = vcfm.reduceDotProd();
+            List<String> sampleNames = vcfm.getSampleNames();
 
             // Print data
-            @SuppressWarnings("unused")
-            int sampleCounter = 0;
-            ops.println(vm.getNumSamples() + "\t" + vm.getNumVariants());
-            for (int i = 0; i < vm.getNumSamples(); i++) {
-                String sampleName1 = sampleNames.get(i);
-                ops.print(sampleName1);
-                for (int j = 0; j < vm.getNumSamples(); j++) {
-                    @SuppressWarnings("unused")
-                    String sampleName2 = sampleNames.get(j);
+            int N = sampleNames.size();
+            ops.println(N + "\t" + vcfm.getNumVariants());
+            for (int i = 0; i < N; i++) {
+                ops.print(sampleNames.get(i));
+                for (int j = 0; j < N; j++) {
                     ops.print("\t" + GeneralTools.decimalFormat.format(distances[i][j]));
                 }
-                ops.println("");
-                sampleCounter++;
-                //if(++sampleCounter % 10 == 0 && verbose) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
+                ops.println();
             }
-            ops.flush();
             ops.close();
-            //if(verbose) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
 
         } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
+            System.exit(1);
         }
     }
 }

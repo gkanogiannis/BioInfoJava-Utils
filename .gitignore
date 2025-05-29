@@ -3,7 +3,8 @@
 /target/
 /.classpath
 /*.jar
-src-unused/
+/src-unused/
 /.idea/
 /.vscode/
 .DS_Store
+/tests/

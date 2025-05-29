@@ -27,14 +27,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 
 import com.gkano.bioinfo.var.Logger;
@@ -42,16 +42,17 @@ import com.gkano.bioinfo.var.Logger;
 @SuppressWarnings("FieldMayBeFinal")
 public class VCFManager<T> implements Runnable {
 
+    static final String POISON_PILL = "__END__";
+
     private final List<String> inputFileNames;
     private int usingThreads;
     private final int maxSizeOfVariantCache;
     private final Function<String, T> variantParser;
     private boolean verbose = false;
 
-    private ConcurrentLinkedQueue<T> variantRawCache;
+    private BlockingQueue<T> variantRawCache;
     private Map<String, int[]> genotypeEncodingCache;
 
-    private boolean done = false;
     private List<String> commentData;
     private String headerData;
     private AtomicInteger currVariantCount;
@@ -88,7 +89,7 @@ public class VCFManager<T> implements Runnable {
             return;
         }
 
-        variantRawCache = new ConcurrentLinkedQueue<>();
+        variantRawCache = new LinkedBlockingQueue<>(maxSizeOfVariantCache);
         genotypeEncodingCache = new ConcurrentHashMap<>();
         commentData = new ArrayList<>();
         currVariantCount = new AtomicInteger(0);
@@ -124,8 +125,6 @@ public class VCFManager<T> implements Runnable {
     public void run() {
         try {
             Logger.setVerbose(verbose);
-            done = false;
-
             Logger.info(this, "START READ");
 
             VCFDecoder decoder = new VCFDecoder();
@@ -133,14 +132,19 @@ public class VCFManager<T> implements Runnable {
             //Stringh line : a snp line from vcf
             VCFStreamingIterator<String> iterator = new VCFStreamingIterator<>(decoder, verbose, inputFileNames);
             for (String line : iterator) {
-                processVariantLine(line);
+                if(line != null) processVariantLine(line);
             }
 
             Logger.info(this, "END READ");
             numVariants = currVariantCount.get();
-            done = true;
+
+            // putting POISON
+            for (int i = 0; i < usingThreads; i++) {
+                putPoison((T) POISON_PILL);
+            }
+
             doneSignal.countDown();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
             shutdown();
             System.exit(1);
@@ -181,47 +185,27 @@ public class VCFManager<T> implements Runnable {
                     }
                 }
                 T parsed = variantParser.apply(line);
-                while (!putVariantRaw(parsed)) {
-                    LockSupport.parkNanos(100_000);
-                }
+                putVariantRaw(parsed);
             }
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
         }
     }
 
-    private boolean putVariantRaw(T variant) {
-        try {
-            //long free = Runtime.getRuntime().freeMemory();
-            //long max = Runtime.getRuntime().maxMemory();
-            //long total = Runtime.getRuntime().totalMemory();
-            //if(free < 48*1024*1024) {
-            //	return false;
-            //}
-            if (this.variantRawCache.size() >= maxSizeOfVariantCache) {
-                return false;
-            }
-            this.variantRawCache.offer(variant);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+    private void putVariantRaw(T variant) throws InterruptedException {
+        variantRawCache.put(variant); 
     }
 
-    public boolean isDone() {
-        return this.done;
-    }
-
-    public boolean hasMoreRaw() {
-        return !this.variantRawCache.isEmpty();
-    }
-
-    public T getNextVariantRaw() {
-        return this.variantRawCache.poll();
+    public T getNextVariantRaw() throws InterruptedException {
+        return variantRawCache.take();
     }
 
     public Map<String, int[]> getEncodingCache() {
-        return this.genotypeEncodingCache;
+        return genotypeEncodingCache;
+    }
+
+    private void putPoison(T poison) throws InterruptedException{
+        variantRawCache.put(poison);
     }
 
     public float[][] reduceDotProd() {

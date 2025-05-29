@@ -23,7 +23,6 @@ package com.gkano.bioinfo.vcf;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
@@ -84,12 +83,8 @@ public class VariantProcessor<T> implements Runnable {
 
             while (true) {
                 variant = vcfm.getNextVariantRaw();
-                if (variant == null) {
-                    if (!vcfm.hasMoreRaw() && vcfm.isDone()) {
-                        break;
-                    }
-                    LockSupport.parkNanos(100_000);
-                    continue;
+                if (variant.equals(VCFManager.POISON_PILL)) {
+                    break;
                 }
                 //Process variant data
                 int count = vcfm.getCurrVariantCount();

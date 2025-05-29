@@ -84,7 +84,7 @@ public class UtilVCF2DIST {
             VCFManager<String> vcfm = new VCFManager<>(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,
-                    10 * numOfThreads,
+                    10_000,
                     SNPEncoder.StringToStringParser,
                     verbose);
             vcfm.init();

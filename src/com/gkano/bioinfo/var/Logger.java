@@ -8,6 +8,7 @@ public class Logger {
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private static boolean verbose = false;
+    private static boolean lastWasCarret = false;
 
     public static void setVerbose(boolean v) {
         verbose = v;
@@ -20,8 +21,13 @@ public class Logger {
     }
 
     public static void info(Object caller, String msg, PrintStream ps) {
+        if (lastWasCarret) {
+            ps.println(); 
+            lastWasCarret = false;
+        }
         if (verbose) {
             ps.println("[INFO]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
+            ps.flush();
         }
     }
 
@@ -33,8 +39,9 @@ public class Logger {
 
     public static void infoCarret(Object caller, String msg, PrintStream ps) {
         if (verbose) {
-            ps.print("\r[INFO]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
+            ps.print("\033[2K\r" +"[INFO]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
             ps.flush();
+            lastWasCarret = true;
         }
     }
 
@@ -44,6 +51,7 @@ public class Logger {
 
     public static void warn(Object caller, String msg, PrintStream ps) {
         ps.println("[WARN]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
+        ps.flush();
     }
 
     public static void error(Object caller, String msg) {
@@ -52,6 +60,7 @@ public class Logger {
 
     public static void error(Object caller, String msg, PrintStream ps) {
         ps.println( "[ERROR]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
+        ps.flush();
     }
 
     public static void debug(Object caller, String msg) {
@@ -63,6 +72,7 @@ public class Logger {
     public static void debug(Object caller, String msg, PrintStream ps) {
         if (verbose) {
             ps.println("[DEBUG]\t" + caller.getClass().getSimpleName() + "\t" + timestamp() + " - " + msg);
+            ps.flush();
         }
     }
 

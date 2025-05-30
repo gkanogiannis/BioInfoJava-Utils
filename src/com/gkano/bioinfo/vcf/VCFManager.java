@@ -24,10 +24,10 @@ package com.gkano.bioinfo.vcf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,12 +37,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 
 @SuppressWarnings("FieldMayBeFinal")
 public class VCFManager<T> implements Runnable {
 
-    static final String POISON_PILL = "__END__";
+    //private static final String POISON_PILL = "__END__";
+    private final List<T> POISON_PILL_BATCH = Collections.emptyList();
+    private final int batchSize = 1000;
 
     private final List<String> inputFileNames;
     private int usingThreads;
@@ -50,12 +53,12 @@ public class VCFManager<T> implements Runnable {
     private final Function<String, T> variantParser;
     private boolean verbose = false;
 
-    private BlockingQueue<T> variantRawCache;
+    private BlockingQueue<List<T>> variantRawCache;
     private Map<String, int[]> genotypeEncodingCache;
 
     private List<String> commentData;
     private String headerData;
-    private AtomicInteger currVariantCount;
+    private static AtomicInteger currVariantCount;
 
     private int numVariants;
     private int numSamples;
@@ -66,24 +69,42 @@ public class VCFManager<T> implements Runnable {
     private CountDownLatch startSignal;
     private CountDownLatch doneSignal;
     private ExecutorService pool;
-    private Map<Integer, VariantProcessor<T>> variantProcessors;
+    //private Map<Integer, VariantProcessor<T>> variantProcessors;
+    private List<CompletableFuture<ProcessorResult>> variantProcessors;
+
+    public static class ProcessorResult {
+        int[][] dotProd;
+        int[] norm;
+        private ProcessorResult(int[][] localDotProd, int[] localNorm) {
+            this.dotProd = localDotProd;
+            this.norm = localNorm;
+        }
+        public void merge(ProcessorResult other) {
+            for (int i = 0; i < norm.length; i++) {
+                norm[i] += other.norm[i];
+                for (int j = i; j < norm.length; j++) {
+                    dotProd[i][j] += other.dotProd[i][j];
+                }
+            }
+        }
+    }
 
     public VCFManager(
             List<String> inputFileNames,
             int usingThreads,
-            int maxSizeOfVariantCache,
             Function<String, T> variantParser,
             boolean verbose
     ) {
         this.inputFileNames = inputFileNames;
         this.usingThreads = usingThreads;
-        this.maxSizeOfVariantCache = maxSizeOfVariantCache;
         this.variantParser = variantParser;
         this.verbose = verbose;
+
+        this.maxSizeOfVariantCache = 2 * usingThreads;
     }
 
     public void init() {
-        if (inputFileNames==null || inputFileNames.isEmpty()) {
+        if (inputFileNames == null || inputFileNames.isEmpty()) {
             Logger.error(this, "No VCF input files provided.");
             System.exit(1);
             return;
@@ -101,19 +122,70 @@ public class VCFManager<T> implements Runnable {
         }
 
         startSignal = new CountDownLatch(1);
-        doneSignal = new CountDownLatch(usingThreads + 1);
+        doneSignal = new CountDownLatch(1);
 
         pool = Executors.newFixedThreadPool(usingThreads);
-        variantProcessors = new HashMap<>();
-        VariantProcessor.resetCounters();
-        for (int i = 0; i < usingThreads; i++) {
-            VariantProcessor<T> vp = new VariantProcessor<>(
-                    this,
-                    startSignal,
-                    doneSignal,
-                    verbose);
-            variantProcessors.put(vp.getId(), vp);
-            pool.execute(vp);
+
+        variantProcessors = new ArrayList<>();
+        
+        for (int t = 0; t < usingThreads; t++) {
+            CompletableFuture<ProcessorResult> variantProcessor = CompletableFuture.supplyAsync(() -> {
+                try {
+                    startSignal.await();  // ⏸ wait until ploidy is known
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+
+                int[][] localDotProd = new int[numSamples][numSamples];
+                int[] localNorm = new int[numSamples];
+
+                List<T> batch;
+                int[][] variantEncoded;
+                int count, step;
+                int[] di, dj;
+                int norm, dotProd;
+                while (true) {
+                    try {
+                        batch = variantRawCache.take();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                    if (batch.isEmpty()) {
+                        break; // poison pill
+                    }
+                    for (T variant : batch) {
+                        count = currVariantCount.incrementAndGet();
+                        if(verbose){
+                            step = GeneralTools.getAdaptiveVariantStep(count);
+                            if (verbose && count % step == 0) {
+                                Logger.infoCarret(this, "Variants:\t" + count);
+                            }
+                        }
+                        try {
+                            variantEncoded = SNPEncoder.encodeSNPOneHot(
+                                (String) variant, ploidy, maxAlleles, genotypeEncodingCache, numSamples);
+                        } catch (IllegalArgumentException e) {
+                            continue;
+                        }
+                        for (int i = 0; i < numSamples; i++) {
+                            di = variantEncoded[i];
+                            norm = 0;
+                            for (int k = 0; k < di.length; k++) norm += Integer.bitCount(di[k] & di[k]);
+                            localNorm[i] += norm;
+                            for (int j = i; j < numSamples; j++) {
+                                dj = variantEncoded[j];
+                                dotProd = 0;
+                                for (int k = 0; k < di.length; k++) dotProd += Integer.bitCount(di[k] & dj[k]);
+                                localDotProd[i][j] += dotProd;
+                            }
+                        }
+                    }
+                }
+                return new ProcessorResult(localDotProd, localNorm);
+            }, pool);
+            variantProcessors.add(variantProcessor);
         }
     }
 
@@ -130,54 +202,56 @@ public class VCFManager<T> implements Runnable {
             VCFDecoder decoder = new VCFDecoder();
             //byte[][] line : split at tabs, byte[] is a string between tabs
             //Stringh line : a snp line from vcf
+            List<T> batch = new ArrayList<>(1000);
             VCFStreamingIterator<String> iterator = new VCFStreamingIterator<>(decoder, verbose, inputFileNames);
-            for (String line : iterator) {
-                if(line != null) processVariantLine(line);
-            }
-
+            for (String line : iterator) if (line != null) processVariantLine(line, batch);
+            // Push the last partial batch if needed
+            if (!batch.isEmpty()) variantRawCache.put(batch);
+            // putting POISON pills
+            for (int i = 0; i < usingThreads; i++) variantRawCache.put(POISON_PILL_BATCH); // use empty list as poison pill
+            
             Logger.info(this, "END READ");
+
+            pool.shutdown();
+            pool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
             numVariants = currVariantCount.get();
 
-            // putting POISON
-            for (int i = 0; i < usingThreads; i++) {
-                putPoison((T) POISON_PILL);
-            }
-
+            if (verbose) Logger.info(this, "Processed variants :\t" + numVariants);
+            
             doneSignal.countDown();
+            
         } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
             shutdown();
             System.exit(1);
-        }
-        finally {
+        } finally {
             shutdown();
         }
     }
 
-    private void processVariantLine(String line) {
+    private void processVariantLine(String line, List<T> batch) {
         try {
             if (line.startsWith("##")) {
                 commentData.add(line);
             } else if (line.startsWith("#")) {
                 headerData = line;
                 sampleNames = getSampleNamesFromHeader();
-                if(sampleNames==null || sampleNames.size()<=0) {
+                if (sampleNames == null || sampleNames.size() <= 0) {
                     shutdown();
                     System.exit(1);
                     return;
                 }
                 numSamples = sampleNames.size();
             } else {
-                currVariantCount.incrementAndGet();
                 if (ploidy <= 0) {
-                    try{
+                    try {
                         int[] ploidy_maxAlleles = SNPEncoder.guessPloidyAndMaxAllele(line);
                         ploidy = ploidy_maxAlleles[0];
                         maxAlleles = ploidy_maxAlleles[1];
                         if (ploidy > 0) {
                             startSignal.countDown();
                         }
-                    } catch(IllegalArgumentException e){
+                    } catch (IllegalArgumentException e) {
                         Logger.error(this, e.getMessage());
                         shutdown();
                         System.exit(1);
@@ -185,40 +259,27 @@ public class VCFManager<T> implements Runnable {
                     }
                 }
                 T parsed = variantParser.apply(line);
-                putVariantRaw(parsed);
+                batch.add(parsed);
+                if (batch.size() >= batchSize) {
+                    variantRawCache.put(new ArrayList<>(batch));
+                    batch.clear();
+                }
             }
         } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
         }
     }
 
-    private void putVariantRaw(T variant) throws InterruptedException {
-        variantRawCache.put(variant); 
-    }
-
-    public T getNextVariantRaw() throws InterruptedException {
-        return variantRawCache.take();
-    }
-
-    public Map<String, int[]> getEncodingCache() {
-        return genotypeEncodingCache;
-    }
-
-    private void putPoison(T poison) throws InterruptedException{
-        variantRawCache.put(poison);
-    }
-
-    public float[][] reduceDotProd() {
+    public float[][] reduceDotProdToDistances() {
         int[][] finalDotProd = new int[numSamples][numSamples];
         int[] finalNorm = new int[numSamples];
-        
-        for (VariantProcessor<T> vp : variantProcessors.values()) {
-            int[][] partialDot = vp.getLocalDotProd();
-            int[] partialNorm = vp.getLocalNorm();
+
+        for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
+            ProcessorResult r = vp.join();
             for (int i = 0; i < numSamples; i++) {
-                finalNorm[i] += partialNorm[i];
+                finalNorm[i] += r.norm[i];
                 for (int j = i; j < numSamples; j++) {
-                    finalDotProd[i][j] += partialDot[i][j];
+                    finalDotProd[i][j] += r.dotProd[i][j];
                 }
             }
         }
@@ -253,38 +314,12 @@ public class VCFManager<T> implements Runnable {
         return Arrays.asList(Arrays.copyOfRange(fields, 9, fields.length));
     }
 
-    public void shutdown() {
-        try {
-            pool.shutdown();
-            if (!pool.awaitTermination(10, TimeUnit.MILLISECONDS)) {
-                Logger.error(this, "Forcing shutdown...");
-                pool.shutdown();
-            }
-        } catch (InterruptedException ex) {
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private void clear() {
-        if (variantRawCache != null) {
-            variantRawCache.clear();
-        }
-    }
-
-    public final List<String> getCommentData() {
-        return commentData;
-    }
-
-    public final String getHeaderData() {
-        return headerData;
+    private void shutdown() {
+        pool.shutdown();
     }
 
     public List<String> getSampleNames() {
         return sampleNames;
-    }
-
-    public int getCurrVariantCount() {
-        return currVariantCount.get();
     }
 
     public int getNumVariants() {

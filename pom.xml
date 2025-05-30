@@ -4,15 +4,31 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
-    <version>1.99.0</version>
+    <version>1.99.1</version>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
         <plugins>
             <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version>
+                <configuration>
+                    <release>11</release>
+                    <compilerArgs>
+                        <arg></arg>
+                        <arg></arg>
+                    </compilerArgs>
+                    <excludes>
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFKeepSamples.java</exclude>                    
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFNonrelated.java</exclude>
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFRemoveClones.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.4.2</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -20,18 +36,6 @@
                             <mainClass>com.gkano.bioinfo.javautils.JavaUtils</mainClass>
                         </manifest>
                     </archive>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
-                <configuration>
-                    <release>8</release>
-                    <excludes>
-                        <exclude>com/gkano/bioinfo/javautils/UtilVCFKeepSamples.java</exclude>                    
-                        <exclude>com/gkano/bioinfo/javautils/UtilVCFNonrelated.java</exclude>
-                        <exclude>com/gkano/bioinfo/javautils/UtilVCFRemoveClones.java</exclude>
-                    </excludes>
                 </configuration>
             </plugin>
             <plugin>
@@ -101,7 +105,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
-                <version>1.8</version>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <phase>install</phase>

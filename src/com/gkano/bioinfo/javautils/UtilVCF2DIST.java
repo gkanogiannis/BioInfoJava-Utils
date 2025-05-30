@@ -84,19 +84,14 @@ public class UtilVCF2DIST {
             VCFManager<String> vcfm = new VCFManager<>(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,
-                    10_000,
                     SNPEncoder.StringToStringParser,
                     verbose);
             vcfm.init();
             new Thread(vcfm).start();
             vcfm.awaitFinalization();
 
-            if (verbose) {
-                Logger.info(this, "Processed variants :\t" + vcfm.getNumVariants());
-            }
-
             // Calculate distances
-            float[][] distances = vcfm.reduceDotProd();
+            float[][] distances = vcfm.reduceDotProdToDistances();
             List<String> sampleNames = vcfm.getSampleNames();
 
             // Print data

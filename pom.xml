@@ -4,22 +4,49 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
-    <version>1.99.1</version>
+    <version>1.99.2</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
+    </properties>
 
     <build>
+         <resources>
+            <resource>
+            <directory>src/resources</directory>
+            <filtering>true</filtering>
+            <includes>
+                <include>version.properties</include>
+            </includes>
+            </resource>
+        </resources>
         <sourceDirectory>src</sourceDirectory>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <useDefaultDelimiters>true</useDefaultDelimiters>
+                    <delimiters>
+                        <delimiter>${*}</delimiter>
+                    </delimiters>
+                </configuration>
+            </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.0</version>
                 <configuration>
+                    <encoding>UTF-8</encoding>
                     <release>11</release>
                     <compilerArgs>
                         <arg></arg>
                         <arg></arg>
                     </compilerArgs>
                     <excludes>
-                        <exclude>com/gkano/bioinfo/javautils/UtilVCFKeepSamples.java</exclude>                    
+                        <exclude>com/gkano/bioinfo/javautils/UtilVCFKeepSamples.java</exclude>
                         <exclude>com/gkano/bioinfo/javautils/UtilVCFNonrelated.java</exclude>
                         <exclude>com/gkano/bioinfo/javautils/UtilVCFRemoveClones.java</exclude>
                     </excludes>

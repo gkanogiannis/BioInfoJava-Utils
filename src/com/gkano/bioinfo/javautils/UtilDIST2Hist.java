@@ -62,7 +62,7 @@ public class UtilDIST2Hist {
     @Parameter(names = "--help", help = true)
     private boolean help;
 
-    @Parameter(description = "Input_File", required = true)
+    @Parameter(description = "<input file>", required = true)
     private String inputFileName;
 
     @Parameter(names = {"--output", "-o"}, description = "Output png image file", required = true)

@@ -295,6 +295,7 @@ public class VCFManager<T> implements Runnable {
                     similarity = 1.0f;
                 }
                 float dist = 1.0f - similarity;
+                if(dist<0) dist = 0f;
                 cosineDist[i][j] = cosineDist[j][i] = dist;
             }
         }

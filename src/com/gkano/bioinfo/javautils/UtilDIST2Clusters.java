@@ -53,7 +53,7 @@ public class UtilDIST2Clusters {
     @Parameter(names = {"-v", "--verbose"})
     private boolean verbose = false;
 
-    @Parameter(description = "Positional Input File")
+    @Parameter(description = "<positional input file>")
     private String positionalInputFile;
 
     @Parameter(names = {"-i", "--input"}, description = "Input file (overrides positional)")
@@ -75,9 +75,7 @@ public class UtilDIST2Clusters {
 
     @SuppressWarnings("unused")
     public void go() {
-        try {
-            //Output PrintStream
-            PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
+        try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
 
             // Select Input File
             String inputFileName = namedInputFile != null ? namedInputFile : positionalInputFile;

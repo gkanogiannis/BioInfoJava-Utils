@@ -52,7 +52,7 @@ public class UtilVCF2DIST {
     @Parameter(names = {"-v", "--verbose"})
     private boolean verbose = false;
 
-    @Parameter(description = "VCF positional input files")
+    @Parameter(description = "<positional input files>")
     private List<String> positionalInputFiles = new ArrayList<>();
 
     @Parameter(names = {"-i", "--input"}, description = "VCF input file(s)", variableArity = true)
@@ -77,10 +77,7 @@ public class UtilVCF2DIST {
     private boolean ignoreHets = false;
 
     public void go() {
-        try {
-            //Output PrintStream
-            PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
-
+        try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
             VCFManager<String> vcfm = new VCFManager<>(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,

@@ -56,7 +56,7 @@ public class UtilFASTA2DIST {
 	@Parameter(names = { "-v", "--verbose"})
 	private boolean verbose = false;
 
-	@Parameter(description = "FASTA positional input files")
+	@Parameter(description = "<positional input files>")
     private List<String> positionalInputFiles = new ArrayList<>();
 
 	@Parameter(names = { "-i", "--input" }, description = "FASTA input file(s)", variableArity = true)
@@ -77,14 +77,9 @@ public class UtilFASTA2DIST {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 
-	@Parameter(names={"--useMappedBuffer"}, description="Use MappedByteBuffer for reading input files. Not compatible with piped input.")
-	private boolean useMappedBuffer = false;
-
 	@SuppressWarnings("unused")
 	public void go() {
-		try {
-			//Output PrintStream
-			PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
+		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
 
 			// Merge all FASTA inputs into one list
             List<String> inputFileNames = new ArrayList<>();
@@ -112,7 +107,7 @@ public class UtilFASTA2DIST {
 			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
 
 			//Map<Integer, SequenceProcessor> sequenceProcessors = new HashMap<>();
-			FastaManager frm = new FastaManager(isFastq, false, inputFileNames, startSignal, doneSignal, useMappedBuffer);
+			FastaManager frm = new FastaManager(isFastq, false, inputFileNames, startSignal, doneSignal);
 			pool.execute(frm);
 
 			SequenceProcessor.resetCounters();
@@ -153,6 +148,7 @@ public class UtilFASTA2DIST {
 		} 
 		catch (InterruptedException e) {
 			Logger.error(this, e.getMessage());
+			System.exit(1);
 		}
 	}
 

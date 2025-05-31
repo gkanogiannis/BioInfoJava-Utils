@@ -89,7 +89,8 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             }
 
         } catch (IOException e) {
-            throw new RuntimeException("Error opening input: " + inputPaths.get(currentPathIndex), e);
+            Logger.error(this, "Error opening input: " + inputPaths.get(currentPathIndex));
+            System.exit(1);
         }
     }
 
@@ -119,7 +120,8 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             }
             nextDecoded = null;
         } catch (IOException e) {
-            throw new RuntimeException("Error reading input", e);
+            Logger.error(this, "Error reading input");
+            System.exit(1);
         }
     }
 

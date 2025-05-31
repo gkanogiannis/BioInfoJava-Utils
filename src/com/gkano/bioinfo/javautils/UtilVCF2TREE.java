@@ -53,7 +53,7 @@ public class UtilVCF2TREE {
 	@Parameter(names = { "-v", "--verbose"})
 	private boolean verbose = false;
 
-	@Parameter(description = "VCF positional input files")
+	@Parameter(description = "<positional input files>")
     private List<String> positionalInputFiles = new ArrayList<>();
 
 	@Parameter(names = { "-i", "--input" }, description = "VCF input file(s)", variableArity = true)
@@ -78,10 +78,7 @@ public class UtilVCF2TREE {
 	private boolean ignoreHets = false;
 
 	public void go() {
-		try {
-			//Output PrintStream
-			PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this);
-
+		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
 			VCFManager<String> vcfm = new VCFManager<>(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,
@@ -97,7 +94,7 @@ public class UtilVCF2TREE {
 
 			//HCluster tree
 			HierarchicalCluster hc = new HierarchicalCluster(verbose);
-			String treeString = hc.hclusteringTree(sampleNames.toArray(new String[0]), distances, null);
+			String treeString = hc.hclusteringTree(sampleNames.toArray(String[]::new), distances, null);
 			ops.println(treeString);
 			ops.close();
 		} 

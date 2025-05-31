@@ -55,15 +55,21 @@ public class UtilVCF2ISTATS {
 	@Parameter(names = "--help", help = true)
 	private boolean help;
 
-	@Parameter(description = "Input_File", required = true)
-	private List<String> inputFileNames = new ArrayList<>();
+	@Parameter(description = "<input_VCF_file>")
+	private String inputFileName;
 	
 	@SuppressWarnings({"unchecked", "UnnecessaryContinue"})
 	public void go() {
 		try {
-			InputStream fis = Files.newInputStream(Paths.get(inputFileNames.get(0)));
+			if (inputFileName == null) {
+				Logger.error(this, "No input file provided.");
+                System.exit(1);
+				return;
+            }
+
+			InputStream fis = Files.newInputStream(Paths.get(inputFileName));
 			BufferedReader br;
-			if(inputFileNames.get(0).endsWith(".gz")) {
+			if(inputFileName.endsWith(".gz")) {
 				br = new BufferedReader(new InputStreamReader(new GZIPInputStream(fis),"UTF-8"));
 			}
 			else {
@@ -154,7 +160,4 @@ public class UtilVCF2ISTATS {
 		}
 	}
 
-    public List<String> getInputFileNames() {
-        return inputFileNames;
-    }
 }

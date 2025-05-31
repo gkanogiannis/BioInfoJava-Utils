@@ -47,16 +47,13 @@ public class FastaManager implements Runnable{
 	private boolean done = false;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
-
-	private boolean useMappedBuffer = false;
 	
-	public FastaManager(boolean isFastq, boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean useMappedBuffer) {
+	public FastaManager(boolean isFastq, boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal) {
 		this.isFastq = isFastq;
 		this.keepQualities = keepQualities;
 		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
-		this.useMappedBuffer = useMappedBuffer;
 		
 		this.sequences = new LinkedBlockingQueue<>();
 		this.staticSequences = new ConcurrentHashMap<>();
@@ -148,17 +145,12 @@ public class FastaManager implements Runnable{
 		try{
 			done = false;
 			
-		    Logger.info(this, "START READ\tStreaming:"+(!useMappedBuffer));
+		    Logger.info(this, "START READ");
 		    startSignal.countDown();
 		    
 			//Get list of lines of full reads (reads_chunk) from the fasta/fastq file (possibly multiline)
 			Iterable<List<byte[]>> iterator;
-			if(useMappedBuffer){
-				iterator = new FastaIterator<>(inputFileNames);
-			}
-			else {
-				iterator = new FastaStreamingIterator(inputFileNames);
-			}
+			iterator = new FastaStreamingIterator(inputFileNames);
 			for (List<byte[]> reads_chunk : iterator) {
 				if(reads_chunk!=null) {
 					//System.err.println(GeneralTools.time()+" FastaManager: Chunk with "+reads_chunk.size()+" lines.");

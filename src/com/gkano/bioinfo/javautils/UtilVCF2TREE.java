@@ -65,17 +65,17 @@ public class UtilVCF2TREE {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 	
-	@SuppressWarnings("unused")
-	@Parameter(names = { "--ignoreMissing", "-m" })
-	private boolean ignoreMissing = false;
+	//@SuppressWarnings("unused")
+	//@Parameter(names = { "--ignoreMissing", "-m" })
+	//private boolean ignoreMissing = false;
 	
-	@SuppressWarnings("unused")
-	@Parameter(names={"--onlyHets", "-h"})
-	private boolean onlyHets = false;
+	//@SuppressWarnings("unused")
+	//@Parameter(names={"--onlyHets", "-h"})
+	//private boolean onlyHets = false;
 	
-	@SuppressWarnings("unused")
-	@Parameter(names={"--ignoreHets", "-g"})
-	private boolean ignoreHets = false;
+	//@SuppressWarnings("unused")
+	//@Parameter(names={"--ignoreHets", "-g"})
+	//private boolean ignoreHets = false;
 
 	public void go() {
 		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {

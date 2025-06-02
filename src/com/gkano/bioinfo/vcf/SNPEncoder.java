@@ -53,7 +53,7 @@ public class SNPEncoder {
         int gtIndex = -1;
         int fieldIdx = 0;
         int pos = 0;
-        while (pos < formatString.length()) {
+        while (formatString!=null && pos < formatString.length()) {
             int sep = formatString.indexOf(':', pos);
             if (sep == -1) {
                 sep = formatString.length();

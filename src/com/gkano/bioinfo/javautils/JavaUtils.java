@@ -108,9 +108,9 @@ public class JavaUtils {
             System.err.println(command);
             goMethod.invoke(util);
         } catch (MissingCommandException | ClassNotFoundException e) {
-            Logger.error(this, "Invalid JavaUtil selection!");
-            Logger.error(this, "Use one of: " + jc.getCommands().keySet());
-            System.exit(1);
+            Logger.warn(this, "Invalid JavaUtil selection!");
+            Logger.warn(this, "Use one of: " + jc.getCommands().keySet());
+            System.exit(0);
         } catch (ParameterException | IllegalAccessException | IllegalArgumentException | NoSuchFieldException | NoSuchMethodException | SecurityException | InvocationTargetException e) {
             Logger.error(this, e.getMessage());
             System.exit(1);

@@ -113,16 +113,20 @@ public class PhylipWriter {
      */
     protected void writeTree(DefaultMutableTreeNode node) throws IOException {
         if(!node.isLeaf())
-            writer.write("(\n");
+            writer.write("(");
 
         //Children
         for(int i = 0, numChildren = node.getChildCount(); i < numChildren; i++) {
             writeTree((Clade)node.getChildAt(i));
             if(i < numChildren - 1)
-                writer.write(",\n");
+                writer.write(",");
         }
-        if(!node.isLeaf())
-            writer.write(")\n");
+        //Bootstrap value
+        if(!node.isLeaf() && node instanceof Clade) {
+            int bs = ((Clade)node).getBootstrapSupport();
+            String label = bs > 0 ? String.valueOf(bs) : "";
+            writer.write(")" + label);
+        }
 
         //Label
         if(!node.isRoot() && node.getUserObject() != null)

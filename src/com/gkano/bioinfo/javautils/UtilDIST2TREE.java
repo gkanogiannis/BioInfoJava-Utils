@@ -94,7 +94,7 @@ public class UtilDIST2TREE {
 			
 			//HCluster tree
 			HierarchicalCluster hc = new HierarchicalCluster(verbose);
-			String treeString = hc.hclusteringTree((String[])data[1], (double[][])data[0], null);
+			String treeString = (String) hc.hclusteringTree((String[])data[1], (double[][])data[0], null)[0];
 			ops.println(treeString);
 			ops.close();
 		} 

@@ -72,18 +72,24 @@ public class VCFManager<T> implements Runnable {
     //private Map<Integer, VariantProcessor<T>> variantProcessors;
     private List<CompletableFuture<ProcessorResult>> variantProcessors;
 
+    private int numBootstraps = 0; // Set this from the constructor or a setter
+
     public static class ProcessorResult {
-        int[][] dotProd;
-        int[] norm;
-        private ProcessorResult(int[][] localDotProd, int[] localNorm) {
-            this.dotProd = localDotProd;
-            this.norm = localNorm;
+        int[][][] dotProd; // [replicate][i][j]
+        int[][] norm;      // [replicate][i]
+        int numReplicates;
+        private ProcessorResult(int numReplicates, int numSamples) {
+            this.numReplicates = numReplicates;
+            this.dotProd = new int[numReplicates][numSamples][numSamples];
+            this.norm = new int[numReplicates][numSamples];
         }
         public void merge(ProcessorResult other) {
-            for (int i = 0; i < norm.length; i++) {
-                norm[i] += other.norm[i];
-                for (int j = i; j < norm.length; j++) {
-                    dotProd[i][j] += other.dotProd[i][j];
+            for (int r = 0; r < numReplicates; r++) {
+                for (int i = 0; i < norm[r].length; i++) {
+                    norm[r][i] += other.norm[r][i];
+                    for (int j = i; j < norm[r].length; j++) {
+                        dotProd[r][i][j] += other.dotProd[r][i][j];
+                    }
                 }
             }
         }
@@ -137,8 +143,9 @@ public class VCFManager<T> implements Runnable {
                     throw new RuntimeException(e);
                 }
 
-                int[][] localDotProd = new int[numSamples][numSamples];
-                int[] localNorm = new int[numSamples];
+                int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
+                ProcessorResult result = new ProcessorResult(numReplicates, numSamples);
+                java.util.Random rand = new java.util.Random();
 
                 List<T> batch;
                 int[][] variantEncoded;
@@ -169,21 +176,31 @@ public class VCFManager<T> implements Runnable {
                         } catch (IllegalArgumentException e) {
                             continue;
                         }
-                        for (int i = 0; i < numSamples; i++) {
-                            di = variantEncoded[i];
-                            norm = 0;
-                            for (int k = 0; k < di.length; k++) norm += Integer.bitCount(di[k] & di[k]);
-                            localNorm[i] += norm;
-                            for (int j = i; j < numSamples; j++) {
-                                dj = variantEncoded[j];
-                                dotProd = 0;
-                                for (int k = 0; k < di.length; k++) dotProd += Integer.bitCount(di[k] & dj[k]);
-                                localDotProd[i][j] += dotProd;
+                        // For each replicate, decide if this SNP is included (with replacement)
+                        // Replicate 0 is always the original (no resampling)
+                        int[] replicateCounts = new int[numReplicates];
+                        replicateCounts[0] = 1; // always include in original
+                        for (int r = 1; r < numReplicates; r++) {
+                            replicateCounts[r] = poisson1(rand); // 0 or more times
+                        }
+                        for (int r = 0; r < numReplicates; r++) {
+                            if (replicateCounts[r] == 0) continue;
+                            for (int i = 0; i < numSamples; i++) {
+                                di = variantEncoded[i];
+                                norm = 0;
+                                for (int k = 0; k < di.length; k++) norm += Integer.bitCount(di[k] & di[k]);
+                                result.norm[r][i] += norm * replicateCounts[r];
+                                for (int j = i; j < numSamples; j++) {
+                                    dj = variantEncoded[j];
+                                    dotProd = 0;
+                                    for (int k = 0; k < di.length; k++) dotProd += Integer.bitCount(di[k] & dj[k]);
+                                    result.dotProd[r][i][j] += dotProd * replicateCounts[r];
+                                }
                             }
                         }
                     }
                 }
-                return new ProcessorResult(localDotProd, localNorm);
+                return result;
             }, pool);
             variantProcessors.add(variantProcessor);
         }
@@ -277,9 +294,9 @@ public class VCFManager<T> implements Runnable {
         for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
             ProcessorResult r = vp.join();
             for (int i = 0; i < numSamples; i++) {
-                finalNorm[i] += r.norm[i];
+                finalNorm[i] += r.norm[0][i];
                 for (int j = i; j < numSamples; j++) {
-                    finalDotProd[i][j] += r.dotProd[i][j];
+                    finalDotProd[i][j] += r.dotProd[0][i][j];
                 }
             }
         }
@@ -300,6 +317,46 @@ public class VCFManager<T> implements Runnable {
             }
         }
         return cosineDist;
+    }
+
+    // At reduction, for each replicate, sum across threads and convert to distance matrix as before.
+    public List<float[][]> reduceDotProdToDistancesBootstraps() {
+        int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
+        int[][][] finalDotProd = new int[numReplicates][numSamples][numSamples];
+        int[][] finalNorm = new int[numReplicates][numSamples];
+
+        for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
+            ProcessorResult r = vp.join();
+            for (int rep = 0; rep < numReplicates; rep++) {
+                for (int i = 0; i < numSamples; i++) {
+                    finalNorm[rep][i] += r.norm[rep][i];
+                    for (int j = i; j < numSamples; j++) {
+                        finalDotProd[rep][i][j] += r.dotProd[rep][i][j];
+                    }
+                }
+            }
+        }
+
+        List<float[][]> allDistances = new ArrayList<>();
+        for (int rep = 0; rep < numReplicates; rep++) {
+            float[][] cosineDist = new float[numSamples][numSamples];
+            for (int i = 0; i < numSamples; i++) {
+                float normI = (float) Math.sqrt(finalNorm[rep][i]);
+                for (int j = i; j < numSamples; j++) {
+                    float normJ = (float) Math.sqrt(finalNorm[rep][j]);
+                    float dot = finalDotProd[rep][i][j];
+                    float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
+                    if (j == i && normI == 0 && normJ == 0) {
+                        similarity = 1.0f;
+                    }
+                    float dist = 1.0f - similarity;
+                    if(dist<0) dist = 0f;
+                    cosineDist[i][j] = cosineDist[j][i] = dist;
+                }
+            }
+            allDistances.add(cosineDist);
+        }
+        return allDistances;
     }
 
     public List<String> getSampleNamesFromHeader() {
@@ -339,4 +396,14 @@ public class VCFManager<T> implements Runnable {
         return maxAlleles;
     }
 
+    private static int poisson1(java.util.Random rand) {
+        double L = Math.exp(-1.0);
+        int k = 0;
+        double p = 1.0;
+        do {
+            k++;
+            p *= rand.nextDouble();
+        } while (p > L);
+        return k - 1;
+    }
 }

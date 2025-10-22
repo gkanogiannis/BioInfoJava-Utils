@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.gkano.bioinfo.tree.Clade;
 import com.gkano.bioinfo.tree.HierarchicalCluster;
 import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
@@ -65,6 +66,9 @@ public class UtilVCF2TREE {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 	
+	@Parameter(names = { "--bootstrap", "-b" }, description = "Number of bootstrap replicates")
+	private int numBootstraps = 0;
+
 	//@SuppressWarnings("unused")
 	//@Parameter(names = { "--ignoreMissing", "-m" })
 	//private boolean ignoreMissing = false;
@@ -84,24 +88,59 @@ public class UtilVCF2TREE {
                     numOfThreads,
                     SNPEncoder.StringToStringParser,
                     verbose);
+
+            // Set number of bootstraps if supported by VCFManager
+            try {
+                java.lang.reflect.Field bsField = vcfm.getClass().getDeclaredField("numBootstraps");
+                bsField.setAccessible(true);
+                bsField.setInt(vcfm, numBootstraps);
+            } catch ( IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
+                Logger.error(this, "Could not set numBootstraps in VCFManager: " + e.getMessage());
+            }
+
             vcfm.init();
 			new Thread(vcfm).start();
             vcfm.awaitFinalization();
 
-            // Calculate distances
-            float[][] distances = vcfm.reduceDotProdToDistances();
-			List<String> sampleNames = vcfm.getSampleNames();
+            List<String> sampleNames = vcfm.getSampleNames();
 
-			//HCluster tree
-			HierarchicalCluster hc = new HierarchicalCluster(verbose);
-			String treeString = hc.hclusteringTree(sampleNames.toArray(String[]::new), distances, null);
-			ops.println(treeString);
-			ops.close();
-		} 
-		catch (InterruptedException e) {
-			Logger.error(this, e.getMessage());
-			System.exit(1);
-		}
+            if (numBootstraps > 0) {
+                List<float[][]> allDistances = vcfm.reduceDotProdToDistancesBootstraps();
+                HierarchicalCluster hc = new HierarchicalCluster(verbose);
+
+                // Original tree
+				Object[] originalTreeAndRoot = hc.hclusteringTree(sampleNames.toArray(String[]::new), allDistances.get(0), null);
+				String originalTree = (String) originalTreeAndRoot[0];
+				Clade originalRoot = (Clade) originalTreeAndRoot[1];
+
+                // Collect bootstrap trees
+                List<Clade> bootstrapTrees = new ArrayList<>();
+                for (int b = 1; b < allDistances.size(); b++) {
+					Object[] bootTreeAndRoot = hc.hclusteringTree(sampleNames.toArray(String[]::new), allDistances.get(b), null);
+					String bootTree = (String) bootTreeAndRoot[0];
+					Clade bootRoot = (Clade) bootTreeAndRoot[1];
+					bootstrapTrees.add(bootRoot);
+                    //ops.println("Bootstrap replicate " + b + ":");
+                    //ops.println(bootTree);
+                }
+
+                // Summarize bootstrap support and annotate tree
+                Clade.annotateTreeWithBootstrap(originalRoot, bootstrapTrees, sampleNames.size(), numBootstraps);
+                //ops.println("Original tree with bootstrap support:");
+                ops.println(Clade.cladeToString(originalRoot));
+            } else {
+                float[][] distances = vcfm.reduceDotProdToDistances();
+                HierarchicalCluster hc = new HierarchicalCluster(verbose);
+                String treeString = (String) hc.hclusteringTree(sampleNames.toArray(String[]::new), distances, null)[0];
+				//ops.println("Original tree:");
+                ops.println(treeString);
+            }
+            ops.close();
+        } 
+        catch (InterruptedException e) {
+            Logger.error(this, e.getMessage());
+            System.exit(1);
+        }
 	}
-	
+
 }

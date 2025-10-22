@@ -21,17 +21,13 @@
  */
 package com.gkano.bioinfo.tree;
 
-import java.io.IOException;
 import java.io.PrintStream;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import javax.swing.tree.DefaultTreeModel;
 
 import com.gkano.bioinfo.javautils.JRITools_JavaUtils;
 import com.gkano.bioinfo.var.GeneralTools;
@@ -349,7 +345,7 @@ public class HierarchicalCluster {
     public TreeMap<Integer, TreeSet<String>> hclusteringClusters(String[] sampleNames, double[][] distances, Integer minClusterSize, Double cutHeight, boolean extra, PrintStream ops) {
         try {
             ops = ops == null ? System.err : ops;
-            String treeString = this.hclusteringTree(sampleNames, distances, ops);
+            String treeString = (String) this.hclusteringTree(sampleNames, distances, ops)[0];
             //System.err.println(treeString);
             //System.err.println(System.getProperty("java.library.path"));
 
@@ -445,11 +441,11 @@ public class HierarchicalCluster {
         return this.findClusters(Arrays.stream(result).asDoubleStream().toArray(), labels);
     }
 
-    public String hclusteringTree(String[] sampleNames, double[][] distances) {
+    public Object[] hclusteringTree(String[] sampleNames, double[][] distances) {
         return hclusteringTree(sampleNames, distances, null);
     }
 
-    public String hclusteringTree(String[] sampleNames, float[][] distances, PrintStream ops) {
+    public Object[] hclusteringTree(String[] sampleNames, float[][] distances, PrintStream ops) {
         int rows = distances.length;
         int cols = distances[0].length;
         double[][] output = new double[rows][cols];
@@ -461,7 +457,8 @@ public class HierarchicalCluster {
         return hclusteringTree(sampleNames, output, ops);
     }
 
-    public String hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) {
+    // Returns a String with the newick tree and the root Clade object
+    public Object[] hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) {
         try {
             ops = ops == null ? System.err : ops;
             ops.println(Logger.timestamp() + " Distances=" + distances.length + "x" + distances[0].length);
@@ -470,20 +467,10 @@ public class HierarchicalCluster {
             this.setLeafLabels(sampleNames);
             this.setLinkageMethod(method);
             ops.println("hierarchical method=" + method);
-            Clade root = this.cluster();
-
-            PhylipWriter writer = new PhylipWriter();
-            StringWriter sw = new StringWriter();
-            writer.setOutput(sw);
-            try {
-                writer.write(new DefaultTreeModel(root));
-            } catch (IOException ex) {
-                Logger.error(this, ex.getMessage());
-            }
             ops.flush();
-
-            String treeString = sw.toString().replace("\n", "");
-            return treeString;
+            Clade root = this.cluster();
+            String treeString = Clade.cladeToString(root).replace("\n", "");
+            return new Object[] {treeString, root};
         } catch (Exception e) {
             Logger.error(this, e.getMessage());
             return null;

@@ -80,4 +80,4 @@ jobs:
           curl -X POST https://api.github.com/repos/gkanogiannis/fastreeR/dispatches \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.FASTREER_PAT }}" \
-            -d '{"event_type": "backend_released", "client_payload": {"backend_version ": "${{ steps.get_version.outputs.version }}"}}'
+            -d '{"event_type": "backend_released", "client_payload": {"backend_version": "${{ steps.get_version.outputs.version }}"}}'

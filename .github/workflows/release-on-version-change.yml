@@ -1,55 +1,161 @@
-name: Release on version change
+name: Release on major/minor change
+
 
 on:
   push:
     branches:
       - main
-    paths:
-      - "pom.xml"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (x.y.z). If empty, use pom.xml."
+        required: false
+        type: string
+      notes:
+        description: "Release notes (only used when 'version' is provided)."
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  decide-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      # 0. Checkout (needed in both modes to access pom.xml and tags)
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # we need tags
 
+      # 1. Install JDK 17
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Extract version from pom.xml
-        id: get_version
+      # 2. Determine "current version" to use:
+      #    - If manually triggered with input.version -> use that
+      #    - Else read from pom.xml
+      - name: Resolve current version
+        id: curr
         run: |
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          INPUT_VER="${{ github.event.inputs.version }}"
 
-      - name: Compare version with last release
-        id: check_release
-        run: |
-          CURRENT_VERSION=${{ steps.get_version.outputs.version }}
-          LATEST_RELEASE=$(gh release list --limit 1 --json tagName -q '.[0].tagName' || echo "")
-          echo "current=$CURRENT_VERSION"
-          echo "latest=$LATEST_RELEASE"
-          if [[ "$LATEST_RELEASE" == "$CURRENT_VERSION" ]]; then
-            echo "No new version. Skipping release."
-            echo "release_needed=false" >> "$GITHUB_OUTPUT"
+          if [ -n "$INPUT_VER" ]; then
+            echo "Using workflow_dispatch input version: $INPUT_VER"
+            VERSION="$INPUT_VER"
+            MODE="manual"
           else
-            echo "New version detected. Will release."
-            echo "release_needed=true" >> "$GITHUB_OUTPUT"
+            echo "No manual version provided. Reading from pom.xml..."
+            VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+            if [ -z "$VERSION" ]; then
+              echo "ERROR: couldn't read <version> from pom.xml and no manual version given."
+              exit 1
+            fi
+            MODE="auto"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+
+          # split x.y.z
+          IFS='.' read -r CUR_MAJ CUR_MIN CUR_PATCH <<< "$VERSION"
+          echo "cur_major=$CUR_MAJ" >> $GITHUB_OUTPUT
+          echo "cur_minor=$CUR_MIN" >> $GITHUB_OUTPUT
+          echo "cur_patch=$CUR_PATCH" >> $GITHUB_OUTPUT
+
+      # 3. Get the latest released version tag from GitHub (fallback 0.0.0 if none)
+      - name: Get latest release tag
+        id: prev
+        run: |
+          API_URL="https://api.github.com/repos/${{ github.repository }}/releases/latest"
+          RESP=$(curl -sSL -H "Accept: application/vnd.github+json" "$API_URL")
+
+          TAG_NAME=$(echo "$RESP" | jq -r .tag_name)
+
+          if [ "$TAG_NAME" = "null" ] || [ -z "$TAG_NAME" ]; then
+            TAG_NAME="0.0.0"
+          fi
+
+          # strip leading "v" if tags are like v1.2.3
+          TAG_NAME="${TAG_NAME#v}"
+
+          echo "previous_version=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          IFS='.' read -r PREV_MAJ PREV_MIN PREV_PATCH <<< "$TAG_NAME"
+          echo "prev_major=$PREV_MAJ" >> $GITHUB_OUTPUT
+          echo "prev_minor=$PREV_MIN" >> $GITHUB_OUTPUT
+          echo "prev_patch=$PREV_PATCH" >> $GITHUB_OUTPUT
+
+      # 4. Extract release notes source
+      #    - If mode=auto   -> read <description> from pom.xml
+      #    - If mode=manual -> read workflow_dispatch input "notes"
+      - name: Resolve release notes
+        id: notes
+        run: |
+          MODE=${{ steps.curr.outputs.mode }}
+
+          if [ "$MODE" = "auto" ]; then
+            echo "Mode is auto. Using <description> from pom.xml as release notes."
+            DESC=$(mvn help:evaluate -Dexpression=project.description -q -DforceStdout)
+
+            # If pom.xml has no <description>, fall back to a generic message
+            if [ -z "$DESC" ]; then
+              DESC="Automated release for version ${{ steps.curr.outputs.current_version }}."
+            fi
+
+            echo "release_notes<<'EOF'" >> $GITHUB_OUTPUT
+            echo "$DESC" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+
+          else
+            echo "Mode is manual. Using workflow_dispatch input notes."
+            MANUAL_NOTES="${{ github.event.inputs.notes }}"
+
+            if [ -z "$MANUAL_NOTES" ]; then
+              echo "ERROR: Manual run requires 'notes' input."
+              exit 1
+            fi
+
+            echo "release_notes<<'EOF'" >> $GITHUB_OUTPUT
+            echo "$MANUAL_NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      # 5. Decide if we should release (major/minor change only)
+      - name: Decide release eligibility
+        id: gate
+        run: |
+          echo "Current:  ${{ steps.curr.outputs.current_version }}"
+          echo "Previous: ${{ steps.prev.outputs.previous_version }}"
+
+          CUR_MAJ=${{ steps.curr.outputs.cur_major }}
+          CUR_MIN=${{ steps.curr.outputs.cur_minor }}
+          PREV_MAJ=${{ steps.prev.outputs.prev_major }}
+          PREV_MIN=${{ steps.prev.outputs.prev_minor }}
+
+          SHOULD_RELEASE="no"
+          if [ "$CUR_MAJ" != "$PREV_MAJ" ] || [ "$CUR_MIN" != "$PREV_MIN" ]; then
+            SHOULD_RELEASE="yes"
+          fi
+
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+
+      # 6. Stop if only PATCH changed
+      - name: Stop if not releasing
+        if: steps.gate.outputs.should_release == 'no'
+        run: |
+          echo "Patch-only update (${{ steps.prev.outputs.previous_version }} -> ${{ steps.curr.outputs.current_version }})."
+          echo "No new release will be created."
+          exit 0
+
+      # 7. Create the GitHub Release (only if major/minor changed)
       - name: Install JRI JAR to local Maven repo
-        if: steps.check_release.outputs.release_needed == 'true'
+        if: steps.gate.outputs.should_release == 'yes'
         run: |
           mvn install:install-file \
             -Dfile=lib/JRI-1.0.jar \
@@ -58,26 +164,28 @@ jobs:
             -Dversion=1.0 \
             -Dpackaging=jar \
             -DgeneratePom=true
-
       - name: Build JAR
-        if: steps.check_release.outputs.release_needed == 'true'
+        if: steps.gate.outputs.should_release == 'yes'
         run: |
           mvn clean package install
-
-      - name: Create GitHub release
-        if: steps.check_release.outputs.release_needed == 'true'
+      - name: Create Release
+        if: steps.gate.outputs.should_release == 'yes'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          name: ${{ steps.get_version.outputs.version }}
+          tag_name: v${{ steps.curr.outputs.current_version }}
+          name: Release ${{ steps.curr.outputs.current_version }}
           generate_release_notes: true
           files: |
             bin/*jar
+          body: ${{ steps.notes.outputs.release_notes }}
+          draft: false
+          prerelease: false
 
-      - name: Notify fastreeR repository
-        if: steps.check_release.outputs.release_needed == 'true'
-        run: |
-          curl -X POST https://api.github.com/repos/gkanogiannis/fastreeR/dispatches \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.FASTREER_PAT }}" \
-            -d '{"event_type": "backend_released", "client_payload": {"backend_version": "${{ steps.get_version.outputs.version }}"}}'
+      # 8. Notify fastreeR repository to update its backend version
+      #- name: Notify fastreeR repository
+      #  if: steps.gate.outputs.should_release == 'yes'
+      #  run: |
+      #    curl -X POST https://api.github.com/repos/gkanogiannis/fastreeR/dispatches \
+      #      -H "Accept: application/vnd.github+json" \
+      #      -H "Authorization: Bearer ${{ secrets.FASTREER_PAT }}" \
+      #      -d '{"event_type": "backend_released", "client_payload": {"backend_version": "${{ steps.curr.outputs.current_version }}"}}'

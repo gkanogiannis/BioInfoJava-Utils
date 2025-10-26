@@ -30,12 +30,18 @@ jobs:
         with:
           fetch-depth: 0  # we need tags
 
-      # 1. Install JDK 17
+      # 1. Install JDK 17 and xmllint
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
+      - name: Ensure xmllint available
+        run: |
+          if ! command -v xmllint >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y libxml2-utils
+          fi
 
       # 2. Determine "current version" to use:
       #    - If manually triggered with input.version -> use that
@@ -51,7 +57,7 @@ jobs:
             MODE="manual"
           else
             echo "No manual version provided. Reading from pom.xml..."
-            VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+            VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" pom.xml 2>/dev/null || true)
             if [ -z "$VERSION" ]; then
               echo "ERROR: couldn't read <version> from pom.xml and no manual version given."
               exit 1
@@ -101,7 +107,7 @@ jobs:
 
           if [ "$MODE" = "auto" ]; then
             echo "Mode is auto. Using <description> from pom.xml as release notes."
-            DESC=$(mvn help:evaluate -Dexpression=project.description -q -DforceStdout)
+            DESC=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='description']/text()" pom.xml 2>/dev/null || true)
 
             # If pom.xml has no <description>, fall back to a generic message
             if [ -z "$DESC" ]; then

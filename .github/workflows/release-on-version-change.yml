@@ -114,9 +114,11 @@ jobs:
               DESC="Automated release for version ${{ steps.curr.outputs.current_version }}."
             fi
 
-            echo "release_notes<<'EOF'" >> $GITHUB_OUTPUT
-            echo "$DESC" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "release_notes<<EOF"
+              echo "$DESC"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
 
           else
             echo "Mode is manual. Using workflow_dispatch input notes."
@@ -127,9 +129,11 @@ jobs:
               exit 1
             fi
 
-            echo "release_notes<<'EOF'" >> $GITHUB_OUTPUT
-            echo "$MANUAL_NOTES" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "release_notes<<EOF"
+              echo "$MANUAL_NOTES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       # 5. Decide if we should release (major/minor change only)

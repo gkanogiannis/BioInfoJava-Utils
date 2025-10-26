@@ -8,7 +8,7 @@ This library serves as the computational backend for the [`fastreeR`](https://gi
 
 The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
 
-- 🆕**Java Backend (v2.1.0) !!** implements streaming bootstrap for VCF2TREE; from VCF file get a newick tree with encoded **bootstrap support values**
+- 🆕**Java Backend (v2.2.0) !!** implements streaming bootstrap for VCF2TREE; from VCF file get a newick tree with encoded **bootstrap support values**
 - Java Backend (v2.0.0) 100x times faster and only
   a couple hundred MB RAM needed. Java 11+ suggested.
 - ✅ **Bioconda**: install with `conda install -c bioconda fastreer`

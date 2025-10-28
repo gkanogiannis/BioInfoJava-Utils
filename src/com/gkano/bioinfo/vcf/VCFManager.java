@@ -105,11 +105,11 @@ public class VCFManager<T> implements Runnable {
         this.usingThreads = usingThreads;
         this.variantParser = variantParser;
         this.verbose = verbose;
-
         this.maxSizeOfVariantCache = 2 * usingThreads;
     }
 
     public void init() {
+        Logger.setVerbose(verbose);
         if (inputFileNames == null || inputFileNames.isEmpty()) {
             Logger.error(this, "No VCF input files provided.");
             System.exit(1);
@@ -123,9 +123,7 @@ public class VCFManager<T> implements Runnable {
 
         int cpus = Runtime.getRuntime().availableProcessors();
         usingThreads = (cpus < usingThreads ? cpus : usingThreads);
-        if (verbose) {
-            Logger.info(this, "cpus=" + cpus + "\tusing=" + usingThreads);
-        }
+        Logger.info(this, "cpus=" + cpus + "\tusing=" + usingThreads);
 
         startSignal = new CountDownLatch(1);
         doneSignal = new CountDownLatch(1);
@@ -213,7 +211,6 @@ public class VCFManager<T> implements Runnable {
     @Override
     public void run() {
         try {
-            Logger.setVerbose(verbose);
             Logger.info(this, "START READ");
 
             VCFDecoder decoder = new VCFDecoder();
@@ -233,7 +230,7 @@ public class VCFManager<T> implements Runnable {
             pool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
             numVariants = currVariantCount.get();
 
-            if (verbose) Logger.info(this, "Processed variants :\t" + numVariants);
+            Logger.info(this, "Processed variants :\t" + numVariants);
             
             doneSignal.countDown();
             
@@ -288,63 +285,26 @@ public class VCFManager<T> implements Runnable {
     }
 
     public float[][] reduceDotProdToDistances() {
-        int[][] finalDotProd = new int[numSamples][numSamples];
-        int[] finalNorm = new int[numSamples];
-
-        for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
-            ProcessorResult r = vp.join();
-            for (int i = 0; i < numSamples; i++) {
-                finalNorm[i] += r.norm[0][i];
-                for (int j = i; j < numSamples; j++) {
-                    finalDotProd[i][j] += r.dotProd[0][i][j];
-                }
-            }
-        }
-
-        float[][] cosineDist = new float[numSamples][numSamples];
-        for (int i = 0; i < numSamples; i++) {
-            float normI = (float) Math.sqrt(finalNorm[i]);
-            for (int j = i; j < numSamples; j++) {
-                float normJ = (float) Math.sqrt(finalNorm[j]);
-                float dot = finalDotProd[i][j];
-                float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
-                if (j == i && normI == 0 && normJ == 0) {
-                    similarity = 1.0f;
-                }
-                float dist = 1.0f - similarity;
-                if(dist<0) dist = 0f;
-                cosineDist[i][j] = cosineDist[j][i] = dist;
-            }
-        }
-        return cosineDist;
-    }
-
-    // At reduction, for each replicate, sum across threads and convert to distance matrix as before.
-    public List<float[][]> reduceDotProdToDistancesBootstraps() {
-        int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
-        int[][][] finalDotProd = new int[numReplicates][numSamples][numSamples];
-        int[][] finalNorm = new int[numReplicates][numSamples];
-
-        for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
-            ProcessorResult r = vp.join();
-            for (int rep = 0; rep < numReplicates; rep++) {
+        try {
+            int[][] finalDotProd = new int[numSamples][numSamples];
+            int[] finalNorm = new int[numSamples];
+    
+            for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
+                ProcessorResult r = vp.join();
                 for (int i = 0; i < numSamples; i++) {
-                    finalNorm[rep][i] += r.norm[rep][i];
+                    finalNorm[i] += r.norm[0][i];
                     for (int j = i; j < numSamples; j++) {
-                        finalDotProd[rep][i][j] += r.dotProd[rep][i][j];
+                        finalDotProd[i][j] += r.dotProd[0][i][j];
                     }
                 }
             }
-        }
-
-        List<float[][]> allDistances = new ArrayList<>();
-        for (int rep = 0; rep < numReplicates; rep++) {
+    
             float[][] cosineDist = new float[numSamples][numSamples];
             for (int i = 0; i < numSamples; i++) {
-                float normI = (float) Math.sqrt(finalNorm[rep][i]);
+                float normI = (float) Math.sqrt(finalNorm[i]);
                 for (int j = i; j < numSamples; j++) {
-                    float normJ = (float) Math.sqrt(finalNorm[rep][j]);
-                    float dot = finalDotProd[rep][i][j];
+                    float normJ = (float) Math.sqrt(finalNorm[j]);
+                    float dot = finalDotProd[i][j];
                     float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
                     if (j == i && normI == 0 && normJ == 0) {
                         similarity = 1.0f;
@@ -354,9 +314,61 @@ public class VCFManager<T> implements Runnable {
                     cosineDist[i][j] = cosineDist[j][i] = dist;
                 }
             }
-            allDistances.add(cosineDist);
+            return cosineDist;
+        } catch (Exception e) {
+            Logger.error(this, e.getMessage());
+            return null;
         }
-        return allDistances;
+    }
+
+    // At reduction, for each replicate, sum across threads and convert to distance matrix as before.
+    public List<float[][]> reduceDotProdToDistancesBootstraps() {
+        try {
+            int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
+            int[][][] finalDotProd = new int[numReplicates][numSamples][numSamples];
+            int[][] finalNorm = new int[numReplicates][numSamples];
+    
+            for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
+                ProcessorResult r = vp.join();
+                for (int rep = 0; rep < numReplicates; rep++) {
+                    for (int i = 0; i < numSamples; i++) {
+                        finalNorm[rep][i] += r.norm[rep][i];
+                        for (int j = i; j < numSamples; j++) {
+                            finalDotProd[rep][i][j] += r.dotProd[rep][i][j];
+                        }
+                    }
+                }
+            }
+    
+            List<float[][]> allDistances = new ArrayList<>();
+            for (int rep = 0; rep < numReplicates; rep++) {
+                float[][] cosineDist = new float[numSamples][numSamples];
+                for (int i = 0; i < numSamples; i++) {
+                    float normI = (float) Math.sqrt(finalNorm[rep][i]);
+                    for (int j = i; j < numSamples; j++) {
+                        float normJ = (float) Math.sqrt(finalNorm[rep][j]);
+                        float dot = finalDotProd[rep][i][j];
+                        float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
+                        if (j == i && normI == 0 && normJ == 0) {
+                            similarity = 1.0f;
+                        }
+                        float dist = 1.0f - similarity;
+                        if(dist<0) dist = 0f;
+                        cosineDist[i][j] = cosineDist[j][i] = dist;
+                    }
+                }
+                allDistances.add(cosineDist);
+            }
+            return allDistances;
+        } catch (OutOfMemoryError e) {
+            Logger.error(this, "Could not allocate memory for bootstrap distance matrices: use --mem option to increase memory available to JVM.");
+            System.exit(256);
+            return null;
+        } 
+        catch (Exception e) {
+            Logger.error(this, e.getMessage());
+            return null;
+        }
     }
 
     public List<String> getSampleNamesFromHeader() {

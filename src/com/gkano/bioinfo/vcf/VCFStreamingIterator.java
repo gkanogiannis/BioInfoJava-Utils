@@ -52,6 +52,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
         this.decoder = decoder;
         this.verbose = verbose;
         this.currentPathIndex = -1;
+        Logger.setVerbose(verbose);
         advanceFile();  // Open first input
         advance();      // Read first valid line
     }
@@ -69,7 +70,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             currentPathIndex++;
             if (currentPathIndex < inputPaths.size()) {
                 String path = inputPaths.get(currentPathIndex);
-                if(verbose) Logger.info(this, "Reading from: " + path);
+                Logger.info(this, "Reading from: " + path);
 
                 InputStream in;
                 if (path.equals("-")) {

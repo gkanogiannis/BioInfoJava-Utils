@@ -1,6 +1,6 @@
 # BioInfoJava-Utils
 
-**BioInfoJava-Utils**  is a modular Java library providing high-performance implementations of core bioinformatics algorithms, such as distance matrix computation and phylogenetic tree construction from **VCF** and **FASTA** files.
+**BioInfoJava-Utils** is a modular Java library providing high-performance implementations of core bioinformatics algorithms, such as distance matrix computation and phylogenetic tree construction from **VCF** and **FASTA** files.
 
 This library serves as the computational backend for the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) software suite, which offers a flexible and user-friendly interface to these tools across multiple platforms and environments.
 
@@ -8,22 +8,15 @@ This library serves as the computational backend for the [`fastreeR`](https://gi
 
 The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
 
-- 🆕**Java Backend (v2.2.0) !!** implements streaming bootstrap for VCF2TREE; from VCF file get a newick tree with encoded **bootstrap support values**
-- Java Backend (v2.0.0) 100x times faster and only
-  a couple hundred MB RAM needed. Java 11+ suggested.
-- ✅ **Bioconda**: install with `conda install -c bioconda fastreer`
-- ✅ **Docker**: available on
-  [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and
-  [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized
-  execution
-- ✅ **PyPI**: install with `pip install fastreer`
-- ✅ **Python CLI**: through a lightweight [Python
-  wrapper](https://github.com/gkanogiannis/fastreeR/blob/devel/fastreeR.py)
-  that calls the Java backend
-- ✅ **R / Bioconductor**: via `rJava`
-- ✅ **Galaxy**: Also available on Galaxy Toolshed.
-- ✅ **Pure Java API**: developers can integrate this library directly
-  in Java-based pipelines or software.
+* 🆕 **Java Backend ([v2.2.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.2.0)) !!** implements streaming bootstrap; from VCF file get a newick tree with encoded bootstrap support values
+* Java Backend ([v2.0.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/2.0.0)) 100x times **FAST**re**ER** and only a couple hundred MB RAM needed. Java 11+ suggested.
+* **Bioconda**: install with `conda install -c bioconda fastreer` ([recipe](https://bioconda.github.io/recipes/fastreer/README.html))
+* **Docker**: available on [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized execution
+* **PyPI**: install with `pip install fastreer` ([repository](https://pypi.org/project/fastreer/))
+* **Python CLI**: through a lightweight [Python wrapper](https://github.com/gkanogiannis/fastreeR/blob/devel/fastreeR.py) that calls the Java backend
+* **R / Bioconductor**: via `rJava` ([package](https://bioconductor.org/packages/fastreeR/))
+* **Galaxy**: available on Galaxy [Toolshed](https://toolshed.g2.bx.psu.edu/view/gkanogiannis/fastreer/26013530719e).
+* **Pure Java API**: developers can integrate this library directly in Java-based pipelines or software.
 
 ## Overview
 

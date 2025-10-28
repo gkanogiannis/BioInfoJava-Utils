@@ -461,13 +461,12 @@ public class HierarchicalCluster {
     public Object[] hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) {
         try {
             ops = ops == null ? System.err : ops;
-            ops.println(Logger.timestamp() + " Distances=" + distances.length + "x" + distances[0].length);
+            Logger.info(this, " Distances=" + distances.length + "x" + distances[0].length, ops);
             String method = HierarchicalCluster.COMPLETE;
             this.setDistanceMatrix(distances);
             this.setLeafLabels(sampleNames);
             this.setLinkageMethod(method);
-            ops.println("hierarchical method=" + method);
-            ops.flush();
+            Logger.info(this, "hierarchical method=" + method, ops);
             Clade root = this.cluster();
             String treeString = Clade.cladeToString(root).replace("\n", "");
             return new Object[] {treeString, root};

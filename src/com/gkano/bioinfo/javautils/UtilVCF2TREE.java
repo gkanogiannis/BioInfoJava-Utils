@@ -107,11 +107,13 @@ public class UtilVCF2TREE {
             if (numBootstraps > 0) {
                 List<float[][]> allDistances = vcfm.reduceDotProdToDistancesBootstraps();
                 HierarchicalCluster hc = new HierarchicalCluster(verbose);
+                Logger.info(this, allDistances.size() + " distance matrices computed (1 original + " + (allDistances.size() - 1) + " bootstraps).");
 
                 // Original tree
 				Object[] originalTreeAndRoot = hc.hclusteringTree(sampleNames.toArray(String[]::new), allDistances.get(0), null);
 				String originalTree = (String) originalTreeAndRoot[0];
 				Clade originalRoot = (Clade) originalTreeAndRoot[1];
+                //ops.println("Original tree:"+originalTree);
 
                 // Collect bootstrap trees
                 List<Clade> bootstrapTrees = new ArrayList<>();

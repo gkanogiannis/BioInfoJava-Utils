@@ -7,8 +7,7 @@
     <name>BioInfoJavaUtils</name>
     <version>2.3.0</version>
     <description>
-        bzip2 and xz compressed VCF files are now supported.
-        streaming VCF input and bootstrapping for vcf2tree module.
+        gzip, bzip2 and xz compressed VCF files are now supported.
     </description>
 
     <properties>

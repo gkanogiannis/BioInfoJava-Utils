@@ -8,7 +8,8 @@ This library serves as the computational backend for the [`fastreeR`](https://gi
 
 The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
 
-* 🆕 **Java Backend ([v2.2.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.2.0)) !!** implements streaming bootstrap; from VCF file get a newick tree with encoded bootstrap support values
+* 🆕 **Java Backend ([v2.3.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.3.0)) !!** now supports reading from gzip (for example .gz), bzip2 (for example .bz2) and xz compressed VCF files.
+* Java Backend ([v2.2.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.2.0)) implements streaming bootstrap; from VCF file get a newick tree with encoded bootstrap support values
 * Java Backend ([v2.0.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/2.0.0)) 100x times **FAST**re**ER** and only a couple hundred MB RAM needed. Java 11+ suggested.
 * **Bioconda**: install with `conda install -c bioconda fastreer` ([recipe](https://bioconda.github.io/recipes/fastreer/README.html))
 * **Docker**: available on [DockerHub](https://hub.docker.com/r/gkanogiannis/fastreer) and [GHCR](https://ghcr.io/gkanogiannis/fastreer) for containerized execution
@@ -24,6 +25,7 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 
 ## Features
 
+* Reads directly from plain, gzip, bzip2 or xz VCF files.
 * 🥾 **Streaming bootstrap** support in the VCF2TREE utility
 * 🚀 Ultra-fast with a superior multithreaded concurrency model
   and minimal RAM usage, **from GBs down to just MBs!**
@@ -31,7 +33,6 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 * 🌳 Build **phylogenetic trees** using neighbor-joining algorithm
 * 🧬 Support for **hierarchical clustering** with dynamic tree pruning
 * 🔄 **Multithreaded** processing for large input files
-* Reads direclty from plain, gzip, bzip2 or xz files.
 * 📦 Integrates seamlessly into diverse environments (R, Python, Docker, Java)
 
 ## Installation

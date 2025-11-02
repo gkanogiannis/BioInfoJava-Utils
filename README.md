@@ -31,6 +31,7 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 * 🌳 Build **phylogenetic trees** using neighbor-joining algorithm
 * 🧬 Support for **hierarchical clustering** with dynamic tree pruning
 * 🔄 **Multithreaded** processing for large input files
+* Reads direclty from plain, gzip, bzip2 or xz files.
 * 📦 Integrates seamlessly into diverse environments (R, Python, Docker, Java)
 
 ## Installation

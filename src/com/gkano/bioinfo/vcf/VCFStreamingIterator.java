@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
 
+import org.itadaki.bzip2.BZip2InputStream;
+import org.tukaani.xz.XZInputStream;
+
 import com.gkano.bioinfo.var.Logger;
 
 public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
@@ -52,7 +55,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
         this.decoder = decoder;
         this.verbose = verbose;
         this.currentPathIndex = -1;
-        Logger.setVerbose(verbose);
+        Logger.setVerbose(this.verbose);
         advanceFile();  // Open first input
         advance();      // Read first valid line
     }
@@ -81,7 +84,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
                     in = new FileInputStream(file);
                 }
 
-                // Automatically detect and wrap gzip if needed
+                // Automatically detect and wrap compressed stream if needed
                 in = detectAndWrap(in);
                 currentReader = new BufferedReader(new InputStreamReader(in));
 
@@ -97,13 +100,36 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
 
     private InputStream detectAndWrap(InputStream in) throws IOException {
         PushbackInputStream pb = new PushbackInputStream(in, 2);
-        byte[] signature = new byte[2];
+        byte[] signature = new byte[6];
         int read = pb.read(signature);
         pb.unread(signature, 0, read);  // push back bytes
 
-        if (read == 2 && signature[0] == (byte) 0x1F && signature[1] == (byte) 0x8B) {
-            return new GZIPInputStream(pb);
+        //gzip magic numbers: 1F 8B
+        //bzip2 magic numbers: 42 5A 68
+        //xz magic numbers: FD 37 7A 58 5A 00
+        //7zip magic numbers: 37 7A BC AF 27 1C
+        if (read == 2 && 
+            signature[0] == (byte) 0x1F && 
+            signature[1] == (byte) 0x8B) {
+                Logger.info(this, "Detected gzip compression.");
+                return new GZIPInputStream(pb);
+        } else if (read == 3 && 
+            signature[0] == (byte) 0x42 && 
+            signature[1] == (byte) 0x5A && 
+            signature[2] == (byte) 0x68) {
+                Logger.info(this, "Detected bzip2 compression.");
+                return new BZip2InputStream(pb, false);
+        } else if (read == 6 && 
+            signature[0] == (byte) 0xFD && 
+            signature[1] == (byte) 0x37 && 
+            signature[2] == (byte) 0x7A && 
+            signature[3] == (byte) 0x58 && 
+            signature[4] == (byte) 0x5A && 
+            signature[5] == (byte) 0x00) {
+                Logger.info(this, "Detected xz compression.");
+                return new XZInputStream(pb);
         } else {
+            Logger.info(this, "No compression detected.");
             return pb;
         }
     }

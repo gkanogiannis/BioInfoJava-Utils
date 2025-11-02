@@ -94,44 +94,59 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
 
         } catch (IOException e) {
             Logger.error(this, "Error opening input: " + inputPaths.get(currentPathIndex));
+            Logger.error(this, e.getMessage());
             System.exit(1);
         }
     }
 
     private InputStream detectAndWrap(InputStream in) throws IOException {
-        PushbackInputStream pb = new PushbackInputStream(in, 2);
-        byte[] signature = new byte[6];
-        int read = pb.read(signature);
-        pb.unread(signature, 0, read);  // push back bytes
+        final int MAX_MAGIC = 6;
+        PushbackInputStream pb = new PushbackInputStream(in, MAX_MAGIC);
 
-        //gzip magic numbers: 1F 8B
-        //bzip2 magic numbers: 42 5A 68
-        //xz magic numbers: FD 37 7A 58 5A 00
-        //7zip magic numbers: 37 7A BC AF 27 1C
-        if (read == 2 && 
-            signature[0] == (byte) 0x1F && 
-            signature[1] == (byte) 0x8B) {
-                Logger.info(this, "Detected gzip compression.");
-                return new GZIPInputStream(pb);
-        } else if (read == 3 && 
-            signature[0] == (byte) 0x42 && 
-            signature[1] == (byte) 0x5A && 
-            signature[2] == (byte) 0x68) {
-                Logger.info(this, "Detected bzip2 compression.");
-                return new BZip2InputStream(pb, false);
-        } else if (read == 6 && 
-            signature[0] == (byte) 0xFD && 
-            signature[1] == (byte) 0x37 && 
-            signature[2] == (byte) 0x7A && 
-            signature[3] == (byte) 0x58 && 
-            signature[4] == (byte) 0x5A && 
-            signature[5] == (byte) 0x00) {
-                Logger.info(this, "Detected xz compression.");
-                return new XZInputStream(pb);
-        } else {
-            Logger.info(this, "No compression detected.");
+        byte[] signature = new byte[MAX_MAGIC];
+        int read = pb.read(signature, 0, signature.length);
+
+        // If we read anything, push it back so downstream consumers see a full stream
+        if (read > 0) {
+            pb.unread(signature, 0, read);
+        } else if (read == -1) {
+            // Empty stream
+            Logger.info(this, "Empty stream; no compression detected.");
             return pb;
         }
+
+        // gzip magic: 1F 8B
+        if (read >= 2
+                && signature[0] == (byte) 0x1F
+                && signature[1] == (byte) 0x8B) {
+            Logger.info(this, "Detected gzip compression.");
+            return new GZIPInputStream(pb);
+        }
+
+        // bzip2 magic: 42 5A 68 ("BZh")
+        if (read >= 3
+                && signature[0] == (byte) 0x42
+                && signature[1] == (byte) 0x5A
+                && signature[2] == (byte) 0x68) {
+            Logger.info(this, "Detected bzip2 compression.");
+            // 'true' to decompress concatenated streams if present
+            return new BZip2InputStream(pb, false);
+        }
+
+        // xz magic: FD 37 7A 58 5A 00
+        if (read >= 6
+                && signature[0] == (byte) 0xFD
+                && signature[1] == (byte) 0x37
+                && signature[2] == (byte) 0x7A
+                && signature[3] == (byte) 0x58
+                && signature[4] == (byte) 0x5A
+                && signature[5] == (byte) 0x00) {
+            Logger.info(this, "Detected xz compression.");
+            return new XZInputStream(pb);
+        }
+
+        Logger.info(this, "No compression detected.");
+        return pb;
     }
 
     private void advance() {

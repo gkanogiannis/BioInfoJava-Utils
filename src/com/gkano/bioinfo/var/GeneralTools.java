@@ -53,7 +53,7 @@ import java.util.zip.GZIPInputStream;
 public class GeneralTools {
 
     public static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-    public static final DecimalFormat decimalFormat = new DecimalFormat("#.######", new DecimalFormatSymbols(Locale.US));
+    public static final DecimalFormat decimalFormat = new DecimalFormat("#.#######", new DecimalFormatSymbols(Locale.US));
 
     private static OfInt prng;
 
@@ -88,7 +88,6 @@ public class GeneralTools {
             return (outputFile == null) ? System.out : new PrintStream(outputFile);
         } catch (FileNotFoundException | SecurityException e) {
             Logger.error(context, "Cannot write to " + outputFile);
-            System.exit(1);
             return null;
         }
     }

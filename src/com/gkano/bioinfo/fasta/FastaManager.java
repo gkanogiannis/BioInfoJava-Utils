@@ -165,7 +165,6 @@ public class FastaManager implements Runnable{
 		}
 		catch(Exception e){
 			Logger.error(this, e.getMessage());
-			System.exit(0);
 		}
 	}
 

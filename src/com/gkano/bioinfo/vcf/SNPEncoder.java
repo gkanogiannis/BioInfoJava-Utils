@@ -110,13 +110,14 @@ public class SNPEncoder {
         return oneHot;
     }
 
-    public static int[] guessPloidyAndMaxAllele(String snpLine) {
-        String[] fields = snpLine.split("\t");
+    public static int[] guessPloidyAndMaxAllele(String vcfLine) {
+        // Expect VCF with at least 10 columns
+        final String[] fields = vcfLine.split("\t", -1);
         if (fields.length < 10) {
             throw new IllegalArgumentException("SNP line does not contain FORMAT and sample fields.");
         }
 
-        String[] formatFields = fields[8].split(":");
+        final String[] formatFields = fields[8].split(":", -1);
         int gtIndex = -1;
         for (int i = 0; i < formatFields.length; i++) {
             if (formatFields[i].equals("GT")) {
@@ -125,39 +126,44 @@ public class SNPEncoder {
             }
         }
 
-        if (gtIndex == -1) {
+        if (gtIndex < 0) {
             throw new IllegalArgumentException("GT field not found in FORMAT.");
         }
 
-        int maxPloidy = 0;
-        int maxAlleleIndex = 0;
+        int inferredPloidy = -1;
+        int maxAllele = -1;
 
-        for (int i = 9; i < fields.length; i++) {
-            String[] parts = fields[i].split(":");
+        int probes = Math.min(8, fields.length - 9);
+        for (int i = 9; i < 9 + probes; i++) {
+            String[] parts = fields[i].split(":", -1);
             if (gtIndex >= parts.length) {
                 continue;
             }
 
             String gt = parts[gtIndex];
-            if (gt == null) {
+            if (gt == null || gt.isEmpty() || gt.equals(".")) {
                 continue;
             }
 
             String[] alleles = gt.split("[/|]");
-            maxPloidy = Math.max(maxPloidy, alleles.length);
+            if (alleles.length == 0) continue;
+            inferredPloidy = Math.max(inferredPloidy, alleles.length);
 
-            for (String allele : alleles) {
-                try {
-                    int a = Integer.parseInt(allele);
-                    if (a > maxAlleleIndex) {
-                        maxAlleleIndex = a;
-                    }
-                } catch (NumberFormatException ignored) {
-                }
-            }
+            maxAllele = Math.max(maxAllele, maxAlleleCount(alleles));
         }
 
-        return new int[]{maxPloidy, maxAlleleIndex + 1}; // +1 to get allele count, not max index
+        if (inferredPloidy <= 0) throw new IllegalArgumentException("Could not infer ploidy from GTs.");
+        return new int[]{inferredPloidy, maxAllele + 1}; // +1 to get allele count, not max index
+    }
+
+    private static int maxAlleleCount(String[] a) {
+        int m = 0;
+        for (String x : a) {
+            if (x.equals(".") || x.isEmpty()) continue;
+            int v = Integer.parseInt(x);
+            if (v > m) m = v;
+        }
+        return m;
     }
 
     public static final Function<String, byte[][]> StringToByteMatrixParser = line

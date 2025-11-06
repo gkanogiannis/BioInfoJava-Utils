@@ -63,7 +63,6 @@ public class UtilVCF2ISTATS {
 		try {
 			if (inputFileName == null) {
 				Logger.error(this, "No input file provided.");
-                System.exit(1);
 				return;
             }
 

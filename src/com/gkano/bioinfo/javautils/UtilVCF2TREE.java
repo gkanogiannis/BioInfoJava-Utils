@@ -83,7 +83,7 @@ public class UtilVCF2TREE {
 
 	public void go() {
 		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
-			VCFManager<String> vcfm = new VCFManager<>(
+			VCFManager vcfm = new VCFManager(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,
                     SNPEncoder.StringToStringParser,
@@ -105,7 +105,7 @@ public class UtilVCF2TREE {
             List<String> sampleNames = vcfm.getSampleNames();
 
             if (numBootstraps > 0) {
-                List<float[][]> allDistances = vcfm.reduceDotProdToDistancesBootstraps();
+                List<double[][]> allDistances = vcfm.reduceDotProdToDistancesBootstraps();
                 HierarchicalCluster hc = new HierarchicalCluster(verbose);
                 Logger.info(this, allDistances.size() + " distance matrices computed (1 original + " + (allDistances.size() - 1) + " bootstraps).");
 
@@ -131,7 +131,7 @@ public class UtilVCF2TREE {
                 //ops.println("Original tree with bootstrap support:");
                 ops.println(Clade.cladeToString(originalRoot));
             } else {
-                float[][] distances = vcfm.reduceDotProdToDistances();
+                double[][] distances = vcfm.reduceDotProdToDistances();
                 HierarchicalCluster hc = new HierarchicalCluster(verbose);
                 String treeString = (String) hc.hclusteringTree(sampleNames.toArray(String[]::new), distances, null)[0];
 				//ops.println("Original tree:");
@@ -139,9 +139,8 @@ public class UtilVCF2TREE {
             }
             ops.close();
         } 
-        catch (InterruptedException e) {
+        catch (RuntimeException | InterruptedException e) {
             Logger.error(this, e.getMessage());
-            System.exit(1);
         }
 	}
 

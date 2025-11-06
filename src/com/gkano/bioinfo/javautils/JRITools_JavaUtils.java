@@ -61,7 +61,7 @@ public class JRITools_JavaUtils {
             // just making sure we have the right version of everything
             if (!Rengine.versionCheck()) {
                 System.err.println("** Version mismatch - Java files don't match library version.");
-                System.exit(1);
+                return;
             }
 
             System.err.println("Creating Rengine (with arguments ) = " + Arrays.toString(args));

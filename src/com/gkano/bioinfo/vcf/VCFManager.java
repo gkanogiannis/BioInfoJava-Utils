@@ -41,24 +41,24 @@ import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 
 @SuppressWarnings("FieldMayBeFinal")
-public class VCFManager<T> implements Runnable {
+public class VCFManager implements Runnable {
 
     //private static final String POISON_PILL = "__END__";
-    private final List<T> POISON_PILL_BATCH = Collections.emptyList();
+    private final List<String> POISON_PILL_BATCH = Collections.emptyList();
     private final int batchSize = 1000;
 
     private final List<String> inputFileNames;
     private int usingThreads;
     private final int maxSizeOfVariantCache;
-    private final Function<String, T> variantParser;
+    private final Function<String, String> variantParser;
     private boolean verbose = false;
 
-    private BlockingQueue<List<T>> variantRawCache;
+    private BlockingQueue<List<String>> variantRawCache;
     private Map<String, int[]> genotypeEncodingCache;
 
     private List<String> commentData;
     private String headerData;
-    private static AtomicInteger currVariantCount;
+    private AtomicInteger currVariantCount;
 
     private int numVariants;
     private int numSamples;
@@ -75,13 +75,13 @@ public class VCFManager<T> implements Runnable {
     private int numBootstraps = 0; // Set this from the constructor or a setter
 
     public static class ProcessorResult {
-        int[][][] dotProd; // [replicate][i][j]
-        int[][] norm;      // [replicate][i]
+        long[][][] dotProd; // [replicate][i][j]
+        long[][] norm;      // [replicate][i]
         int numReplicates;
         private ProcessorResult(int numReplicates, int numSamples) {
             this.numReplicates = numReplicates;
-            this.dotProd = new int[numReplicates][numSamples][numSamples];
-            this.norm = new int[numReplicates][numSamples];
+            this.dotProd = new long[numReplicates][numSamples][numSamples];
+            this.norm = new long[numReplicates][numSamples];
         }
         public void merge(ProcessorResult other) {
             for (int r = 0; r < numReplicates; r++) {
@@ -98,22 +98,21 @@ public class VCFManager<T> implements Runnable {
     public VCFManager(
             List<String> inputFileNames,
             int usingThreads,
-            Function<String, T> variantParser,
+            Function<String, String> variantParser,
             boolean verbose
     ) {
         this.inputFileNames = inputFileNames;
         this.usingThreads = usingThreads;
         this.variantParser = variantParser;
         this.verbose = verbose;
-        this.maxSizeOfVariantCache = 2 * usingThreads;
+        this.maxSizeOfVariantCache = 4 * usingThreads;
     }
 
     public void init() {
         Logger.setVerbose(verbose);
         if (inputFileNames == null || inputFileNames.isEmpty()) {
             Logger.error(this, "No VCF input files provided.");
-            System.exit(1);
-            return;
+            throw new IllegalArgumentException("No VCF input files provided.");
         }
 
         variantRawCache = new LinkedBlockingQueue<>(maxSizeOfVariantCache);
@@ -135,7 +134,10 @@ public class VCFManager<T> implements Runnable {
         for (int t = 0; t < usingThreads; t++) {
             CompletableFuture<ProcessorResult> variantProcessor = CompletableFuture.supplyAsync(() -> {
                 try {
-                    startSignal.await();  // ⏸ wait until ploidy is known
+                    // ⏸ wait until ploidy is known
+                    if (!startSignal.await(5, TimeUnit.MINUTES)) {
+                        throw new IllegalStateException("Timeout waiting for ploidy/maxAlleles initialization");
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
@@ -145,11 +147,11 @@ public class VCFManager<T> implements Runnable {
                 ProcessorResult result = new ProcessorResult(numReplicates, numSamples);
                 java.util.Random rand = new java.util.Random();
 
-                List<T> batch;
+                List<String> batch;
                 int[][] variantEncoded;
                 int count, step;
                 int[] di, dj;
-                int norm, dotProd;
+                long norm, dotProd;
                 while (true) {
                     try {
                         batch = variantRawCache.take();
@@ -160,17 +162,17 @@ public class VCFManager<T> implements Runnable {
                     if (batch.isEmpty()) {
                         break; // poison pill
                     }
-                    for (T variant : batch) {
+                    for (String variant : batch) {
                         count = currVariantCount.incrementAndGet();
                         if(verbose){
                             step = GeneralTools.getAdaptiveVariantStep(count);
-                            if (verbose && count % step == 0) {
+                            if (count % step == 0) {
                                 Logger.infoCarret(this, "Variants:\t" + count);
                             }
                         }
                         try {
                             variantEncoded = SNPEncoder.encodeSNPOneHot(
-                                (String) variant, ploidy, maxAlleles, genotypeEncodingCache, numSamples);
+                                variant, ploidy, maxAlleles, genotypeEncodingCache, numSamples);
                         } catch (IllegalArgumentException e) {
                             continue;
                         }
@@ -186,7 +188,10 @@ public class VCFManager<T> implements Runnable {
                             for (int i = 0; i < numSamples; i++) {
                                 di = variantEncoded[i];
                                 norm = 0;
-                                for (int k = 0; k < di.length; k++) norm += Integer.bitCount(di[k] & di[k]);
+                                for (int k = 0; k < di.length; k++) {
+                                    //norm += Integer.bitCount(di[k] & di[k]);
+                                    norm += Integer.bitCount(di[k]);
+                                }
                                 result.norm[r][i] += norm * replicateCounts[r];
                                 for (int j = i; j < numSamples; j++) {
                                     dj = variantEncoded[j];
@@ -216,11 +221,18 @@ public class VCFManager<T> implements Runnable {
             VCFDecoder decoder = new VCFDecoder();
             //byte[][] line : split at tabs, byte[] is a string between tabs
             //Stringh line : a snp line from vcf
-            List<T> batch = new ArrayList<>(1000);
-            VCFStreamingIterator<String> iterator = new VCFStreamingIterator<>(decoder, verbose, inputFileNames);
-            for (String line : iterator) if (line != null) processVariantLine(line, batch);
+            List<String> batch = new ArrayList<>(2500);
+            try (VCFStreamingIterator<String> iterator = new VCFStreamingIterator<>(decoder, verbose, inputFileNames)) {
+                for (String line : iterator) {
+                    if (line != null) processVariantLine(line, batch);
+                }
+            }
             // Push the last partial batch if needed
             if (!batch.isEmpty()) variantRawCache.put(batch);
+            // If ploidy was never inferred (no data lines), release workers to exit cleanly
+            if (ploidy <= 0) {
+                startSignal.countDown();
+            }
             // putting POISON pills
             for (int i = 0; i < usingThreads; i++) variantRawCache.put(POISON_PILL_BATCH); // use empty list as poison pill
             
@@ -234,16 +246,17 @@ public class VCFManager<T> implements Runnable {
             
             doneSignal.countDown();
             
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             Logger.error(this, e.getMessage());
             shutdown();
-            System.exit(1);
+            doneSignal.countDown();
+            Thread.currentThread().interrupt();
         } finally {
             shutdown();
         }
     }
 
-    private void processVariantLine(String line, List<T> batch) {
+    private void processVariantLine(String line, List<String> batch) throws Exception {
         try {
             if (line.startsWith("##")) {
                 commentData.add(line);
@@ -251,9 +264,7 @@ public class VCFManager<T> implements Runnable {
                 headerData = line;
                 sampleNames = getSampleNamesFromHeader();
                 if (sampleNames == null || sampleNames.size() <= 0) {
-                    shutdown();
-                    System.exit(1);
-                    return;
+                    throw new IllegalStateException("No samples detected from #CHROM header.");
                 }
                 numSamples = sampleNames.size();
             } else {
@@ -266,28 +277,25 @@ public class VCFManager<T> implements Runnable {
                             startSignal.countDown();
                         }
                     } catch (IllegalArgumentException e) {
-                        Logger.error(this, e.getMessage());
-                        shutdown();
-                        System.exit(1);
-                        return;
+                        throw new IllegalStateException("Failed to infer ploidy / maxAlleles: " + e.getMessage(), e);
                     }
                 }
-                T parsed = variantParser.apply(line);
+                String parsed = variantParser.apply(line);
                 batch.add(parsed);
                 if (batch.size() >= batchSize) {
                     variantRawCache.put(new ArrayList<>(batch));
                     batch.clear();
                 }
             }
-        } catch (InterruptedException e) {
-            Logger.error(this, e.getMessage());
+        } catch (IllegalStateException | InterruptedException | IllegalArgumentException e) {
+            throw  new RuntimeException(e);
         }
     }
 
-    public float[][] reduceDotProdToDistances() {
+    public double[][] reduceDotProdToDistances() {
         try {
-            int[][] finalDotProd = new int[numSamples][numSamples];
-            int[] finalNorm = new int[numSamples];
+            long[][] finalDotProd = new long[numSamples][numSamples];
+            long[] finalNorm = new long[numSamples];
     
             for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
                 ProcessorResult r = vp.join();
@@ -299,34 +307,33 @@ public class VCFManager<T> implements Runnable {
                 }
             }
     
-            float[][] cosineDist = new float[numSamples][numSamples];
+            double[][] cosineDist = new double[numSamples][numSamples];
             for (int i = 0; i < numSamples; i++) {
-                float normI = (float) Math.sqrt(finalNorm[i]);
+                double normI = Math.sqrt(finalNorm[i]);
                 for (int j = i; j < numSamples; j++) {
-                    float normJ = (float) Math.sqrt(finalNorm[j]);
-                    float dot = finalDotProd[i][j];
-                    float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
+                    double normJ = Math.sqrt(finalNorm[j]);
+                    double dot = finalDotProd[i][j];
+                    double similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
                     if (j == i && normI == 0 && normJ == 0) {
-                        similarity = 1.0f;
+                        similarity = 1.0;
                     }
-                    float dist = 1.0f - similarity;
-                    if(dist<0) dist = 0f;
+                    double dist = 1.0 - similarity;
+                    if(dist<0) dist = 0.0;
                     cosineDist[i][j] = cosineDist[j][i] = dist;
                 }
             }
             return cosineDist;
         } catch (Exception e) {
-            Logger.error(this, e.getMessage());
-            return null;
+            throw new RuntimeException(e);
         }
     }
 
     // At reduction, for each replicate, sum across threads and convert to distance matrix as before.
-    public List<float[][]> reduceDotProdToDistancesBootstraps() {
+    public List<double[][]> reduceDotProdToDistancesBootstraps() {
         try {
             int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
-            int[][][] finalDotProd = new int[numReplicates][numSamples][numSamples];
-            int[][] finalNorm = new int[numReplicates][numSamples];
+            long[][][] finalDotProd = new long[numReplicates][numSamples][numSamples];
+            long[][] finalNorm = new long[numReplicates][numSamples];
     
             for (CompletableFuture<ProcessorResult> vp : variantProcessors) {
                 ProcessorResult r = vp.join();
@@ -340,20 +347,20 @@ public class VCFManager<T> implements Runnable {
                 }
             }
     
-            List<float[][]> allDistances = new ArrayList<>();
+            List<double[][]> allDistances = new ArrayList<>();
             for (int rep = 0; rep < numReplicates; rep++) {
-                float[][] cosineDist = new float[numSamples][numSamples];
+                double[][] cosineDist = new double[numSamples][numSamples];
                 for (int i = 0; i < numSamples; i++) {
-                    float normI = (float) Math.sqrt(finalNorm[rep][i]);
+                    double normI = Math.sqrt(finalNorm[rep][i]);
                     for (int j = i; j < numSamples; j++) {
-                        float normJ = (float) Math.sqrt(finalNorm[rep][j]);
-                        float dot = finalDotProd[rep][i][j];
-                        float similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0f);
+                        double normJ = Math.sqrt(finalNorm[rep][j]);
+                        double dot = finalDotProd[rep][i][j];
+                        double similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0);
                         if (j == i && normI == 0 && normJ == 0) {
-                            similarity = 1.0f;
+                            similarity = 1.0;
                         }
-                        float dist = 1.0f - similarity;
-                        if(dist<0) dist = 0f;
+                        double dist = 1.0 - similarity;
+                        if(dist<0) dist = 0.0;
                         cosineDist[i][j] = cosineDist[j][i] = dist;
                     }
                 }
@@ -362,21 +369,19 @@ public class VCFManager<T> implements Runnable {
             return allDistances;
         } catch (OutOfMemoryError e) {
             Logger.error(this, "Could not allocate memory for bootstrap distance matrices: use --mem option to increase memory available to JVM.");
-            System.exit(256);
-            return null;
+            throw new RuntimeException("Could not allocate memory for bootstrap distance matrices: " + e.getMessage(), e);
         } 
         catch (Exception e) {
-            Logger.error(this, e.getMessage());
-            return null;
+            throw new RuntimeException(e);
         }
     }
 
     public List<String> getSampleNamesFromHeader() {
         if (headerData == null || !headerData.startsWith("#CHROM")) {
-            throw new IllegalArgumentException("Line does not start with #CHROM: " + headerData);
+            throw new IllegalArgumentException("VCF header missing #CHROM line: " + headerData);
         }
 
-        String[] fields = this.headerData.split("\t", -1);
+        final String[] fields = headerData.split("\t", -1);
         if (fields.length <= 9) {
             return Collections.emptyList();
         }
@@ -385,7 +390,7 @@ public class VCFManager<T> implements Runnable {
     }
 
     private void shutdown() {
-        pool.shutdown();
+        pool.shutdownNow();
     }
 
     public List<String> getSampleNames() {
@@ -406,6 +411,11 @@ public class VCFManager<T> implements Runnable {
 
     public int getMaxAlleles() {
         return maxAlleles;
+    }
+
+    public void setNumBootstraps(int replicates) {
+        if (replicates < 0) throw new IllegalArgumentException("bootstrap replicates must be >= 0");
+        this.numBootstraps = replicates;
     }
 
     private static int poisson1(java.util.Random rand) {

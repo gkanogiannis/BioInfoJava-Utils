@@ -71,7 +71,6 @@ public class UtilDIST2TREE {
 
 			if (inputFileName == null) {
 				Logger.error(this, "No input file provided.");
-                System.exit(1);
 				return;
             }
 
@@ -100,7 +99,6 @@ public class UtilDIST2TREE {
 		} 
 		catch (IOException e) {
 			Logger.error(this, e.getMessage());
-			System.exit(1);
 		}
 	}
 	

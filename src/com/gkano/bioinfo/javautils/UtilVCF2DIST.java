@@ -78,7 +78,7 @@ public class UtilVCF2DIST {
 
     public void go() {
         try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
-            VCFManager<String> vcfm = new VCFManager<>(
+            VCFManager vcfm = new VCFManager(
                     Stream.concat(positionalInputFiles.stream(), namedInputFiles.stream()).collect(Collectors.toList()),
                     numOfThreads,
                     SNPEncoder.StringToStringParser,
@@ -88,7 +88,7 @@ public class UtilVCF2DIST {
             vcfm.awaitFinalization();
 
             // Calculate distances
-            float[][] distances = vcfm.reduceDotProdToDistances();
+            double[][] distances = vcfm.reduceDotProdToDistances();
             List<String> sampleNames = vcfm.getSampleNames();
 
             // Print data
@@ -105,7 +105,6 @@ public class UtilVCF2DIST {
 
         } catch (InterruptedException e) {
             Logger.error(this, e.getMessage());
-            System.exit(1);
         }
     }
 }

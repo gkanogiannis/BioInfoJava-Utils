@@ -39,7 +39,7 @@ import org.tukaani.xz.XZInputStream;
 
 import com.gkano.bioinfo.var.Logger;
 
-public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
+public class VCFStreamingIterator<T> implements Iterable<T>, Iterator<T>, AutoCloseable {
 
     private final List<String> inputPaths;
     private final VCFDecoderInterface<T> decoder;
@@ -95,7 +95,6 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
         } catch (IOException e) {
             Logger.error(this, "Error opening input: " + inputPaths.get(currentPathIndex));
             Logger.error(this, e.getMessage());
-            System.exit(1);
         }
     }
 
@@ -163,7 +162,6 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
             nextDecoded = null;
         } catch (IOException e) {
             Logger.error(this, "Error reading input");
-            System.exit(1);
         }
     }
 
@@ -190,6 +188,7 @@ public class VCFStreamingIterator<T> implements Iterator<T>, Iterable<T> {
         return this;
     }
 
+    @Override
     public void close() {
         try {
             if (currentReader != null && !usingStdin) {

@@ -77,7 +77,6 @@ public class UtilFASTA2DIST {
 	@Parameter(names = { "--numberOfThreads", "-t" })
 	private int numOfThreads = 1;
 
-	@SuppressWarnings("unused")
 	public void go() {
 		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
 
@@ -88,7 +87,6 @@ public class UtilFASTA2DIST {
 
 			if (inputFileNames.isEmpty()) {
 				Logger.error(this, "No FASTA input files provided.");
-                System.exit(1);
 				return;
             }
 
@@ -148,7 +146,6 @@ public class UtilFASTA2DIST {
 		} 
 		catch (InterruptedException e) {
 			Logger.error(this, e.getMessage());
-			System.exit(1);
 		}
 	}
 

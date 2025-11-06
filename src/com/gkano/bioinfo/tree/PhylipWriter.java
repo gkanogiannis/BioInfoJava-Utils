@@ -33,6 +33,8 @@ import java.io.Writer;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeModel;
 
+import com.gkano.bioinfo.var.GeneralTools;
+
 public class PhylipWriter {
 	protected Writer writer;
     protected Object output;
@@ -137,7 +139,7 @@ public class PhylipWriter {
             writer.write(":");
             Clade branch = (Clade)node;
             double length = branch.getBranchLength();
-            writer.write(String.valueOf(length));
+            writer.write(String.valueOf(GeneralTools.decimalFormat.format(length)));
         }
     }
 }

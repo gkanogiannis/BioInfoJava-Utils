@@ -80,12 +80,12 @@ public class JavaUtils {
                 System.out.println(this.getClass().getName() + (command==null?"":" "+command));
                 System.out.println("Version: " + VersionInfo.VERSION);
                 System.out.println("Build Time: " + VersionInfo.BUILD_TIME);
-                System.exit(0);
+                return;
             }
             if(usage){
                 System.out.println(this.getClass().getName());
                 jc.usage();
-                System.exit(0);
+                return;
             }
 
             Class<?> utilClass = Class.forName(JavaUtils.class.getPackage().getName() + ".Util" + command);
@@ -102,18 +102,18 @@ public class JavaUtils {
                 //StringBuilder sb = new StringBuilder();
                 //jc.usage(jc.getParsedCommand(),sb);
                 //System.err.println(sb.toString());
-                System.exit(0);
+                return;
             }
 
             System.err.println(command);
+            System.err.println("Version: " + VersionInfo.VERSION);
+            System.err.println("Build Time: " + VersionInfo.BUILD_TIME);
             goMethod.invoke(util);
         } catch (MissingCommandException | ClassNotFoundException e) {
             Logger.warn(this, "Invalid JavaUtil selection!");
             Logger.warn(this, "Use one of: " + jc.getCommands().keySet());
-            System.exit(0);
         } catch (ParameterException | IllegalAccessException | IllegalArgumentException | NoSuchFieldException | NoSuchMethodException | SecurityException | InvocationTargetException e) {
             Logger.error(this, e.getMessage());
-            System.exit(1);
         }
     }
 

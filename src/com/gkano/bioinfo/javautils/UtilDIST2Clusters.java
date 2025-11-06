@@ -82,7 +82,6 @@ public class UtilDIST2Clusters {
 
             if (inputFileName == null) {
                 Logger.error(this, "No input file provided.");
-                System.exit(1);
                 return;
             }
 
@@ -110,7 +109,6 @@ public class UtilDIST2Clusters {
             ops.close();
         } catch (IOException e) {
             Logger.error(this, e.getMessage());
-            System.exit(1);
         }
     }
 

@@ -5,7 +5,7 @@
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
     <name>BioInfoJavaUtils</name>
-    <version>2.4.0</version>
+    <version>2.3.1</version>
     <description>
         2025-11-05: Changed distances to be double instead of float.
         2025-10-29: gzip, bzip2 and xz compressed VCF files are now supported.

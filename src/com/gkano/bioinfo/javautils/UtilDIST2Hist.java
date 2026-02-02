@@ -24,7 +24,6 @@ package com.gkano.bioinfo.javautils;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 
@@ -86,7 +85,7 @@ public class UtilDIST2Hist {
             try (OutputStream os = new FileOutputStream(outputFileName)) {
                 ImageIO.write(bImage, "png", os);
             }
-        } catch (IOException | NumberFormatException e) {
+        } catch (Exception e) {
             Logger.error(this, e.getMessage());
         }
     }

@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class VCFDecoder implements VCFDecoderInterface<String> {
+public class VCFDecoder {
 
     private static final byte LF = 10;
     private static final byte TAB = 9;
@@ -36,7 +36,6 @@ public class VCFDecoder implements VCFDecoderInterface<String> {
     public VCFDecoder() {
     }
 
-    @Override
     public String decode(ByteBuffer buffer) {
         int lineStartPos = buffer.position();
         int limit = buffer.limit();
@@ -115,15 +114,7 @@ public class VCFDecoder implements VCFDecoderInterface<String> {
         return ret;
     }
 
-    @Override
     public String decode(String line) {
         return line;
     }
-}
-
-interface VCFDecoderInterface<T> {
-
-    public T decode(ByteBuffer buffer);
-
-    public T decode(String line);
 }

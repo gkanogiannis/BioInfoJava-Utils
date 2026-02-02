@@ -27,7 +27,7 @@ import gnu.trove.iterator.TLongDoubleIterator;
 import gnu.trove.iterator.TLongIntIterator;
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
-public class SequenceD2 extends Sequence implements SequenceD2Interface{
+public class SequenceD2 extends Sequence {
 
 	public int as = 0;
 	public int ts = 0;
@@ -45,8 +45,11 @@ public class SequenceD2 extends Sequence implements SequenceD2Interface{
 	}
 
 	public long getAs() {return (long)as;}
+	
 	public long getTs() {return (long)ts;}
+	
 	public long getCs() {return (long)cs;}
+	
 	public long getGs() {return (long)gs;}
 
 	public long getNumOfElements() {
@@ -190,11 +193,13 @@ public class SequenceD2 extends Sequence implements SequenceD2Interface{
         	current = kmerProbs.size();
         }
 
+		@Override
         public boolean hasNext() {
         	hasNext = (current > 0);
             return hasNext;
         }
 
+		@Override
         public void advance() {
 			if(!hasNext){
     			return;
@@ -203,18 +208,22 @@ public class SequenceD2 extends Sequence implements SequenceD2Interface{
             current--;
 		}
         
+		@Override
         public long key() {
         	return iterator.key();
 		}
         
+		@Override
         public double value() {
         	return iterator.value();
 		}
         
         
-        //Unused
+        @Override
         public void remove() {
       	}
+
+		@Override
       	public double setValue(double arg0) {
       		return 0.0;
       	}	

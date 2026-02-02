@@ -61,7 +61,7 @@ public class Clade extends DefaultMutableTreeNode {
     public void setBootstrapSupport(int value) { this.bootstrapSupport = value; }
     public int getBootstrapSupport() { return this.bootstrapSupport; }
 
-	public static String cladeToString(Clade node) {
+	public static String cladeToString(Clade node) throws IOException {
 		PhylipWriter writer = new PhylipWriter();
         StringWriter sw = new StringWriter();
         writer.setOutput(sw);
@@ -69,6 +69,7 @@ public class Clade extends DefaultMutableTreeNode {
             writer.write(new DefaultTreeModel(node));
         } catch (IOException ex) {
             Logger.error(Clade.class, ex.getMessage());
+			throw ex;
         }
         return sw.toString().replace("\n", "");
 	}

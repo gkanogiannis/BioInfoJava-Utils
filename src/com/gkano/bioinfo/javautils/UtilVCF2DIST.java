@@ -1,6 +1,6 @@
 /*
  *
- * BioInfoJava-Utils 
+ * BioInfoJava-Utils
  *
  * Copyright (C) 2021 Anestis Gkanogiannis <anestis@gkanogiannis.com>
  *
@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, 
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -24,6 +24,7 @@ package com.gkano.bioinfo.javautils;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,6 +34,8 @@ import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 import com.gkano.bioinfo.vcf.SNPEncoder;
 import com.gkano.bioinfo.vcf.VCFManager;
+import com.gkano.bioinfo.vcf.VariantEmbeddingLoader;
+import com.gkano.bioinfo.vcf.VariantKeyExtractor;
 
 @SuppressWarnings("FieldMayBeFinal")
 @Parameters(commandDescription = "VCF2DIST")
@@ -64,6 +67,19 @@ public class UtilVCF2DIST {
     @Parameter(names = {"--numberOfThreads", "-t"})
     private int numOfThreads = 1;
 
+    // Embedding options
+    @Parameter(names = {"-e", "--embeddings"},
+               description = "Variant embeddings file for embedding-based distance calculation")
+    private String embeddingsFile;
+
+    @Parameter(names = {"--embeddings-format"},
+               description = "Embeddings file format: TSV or HUGGINGFACE (auto-detected if not specified)")
+    private String embeddingsFormat;
+
+    @Parameter(names = {"--variant-key"},
+               description = "Variant key format for embedding lookup: CHROM_POS, CHROM_POS_REF_ALT, or VCF_ID")
+    private String variantKeyFormat = "CHROM_POS_REF_ALT";
+
     //@SuppressWarnings("unused")
     //@Parameter(names = {"--ignoreMissing", "-m"})
     //private boolean ignoreMissing = false;
@@ -83,6 +99,22 @@ public class UtilVCF2DIST {
                     numOfThreads,
                     SNPEncoder.StringToStringParser,
                     verbose);
+
+            // Load and set embeddings if provided
+            if (embeddingsFile != null && !embeddingsFile.isEmpty()) {
+                Logger.info(this, "Loading embeddings from: " + embeddingsFile);
+                Map<String, double[]> embeddings;
+                if (embeddingsFormat != null && !embeddingsFormat.isEmpty()) {
+                    VariantEmbeddingLoader.EmbeddingFormat format =
+                        VariantEmbeddingLoader.EmbeddingFormat.valueOf(embeddingsFormat.toUpperCase());
+                    embeddings = VariantEmbeddingLoader.loadEmbeddings(embeddingsFile, format);
+                } else {
+                    embeddings = VariantEmbeddingLoader.loadEmbeddings(embeddingsFile);
+                }
+                VariantKeyExtractor.KeyFormat keyFormat = VariantKeyExtractor.parseFormat(variantKeyFormat);
+                vcfm.setEmbeddings(embeddings, keyFormat);
+            }
+
             vcfm.init();
             new Thread(vcfm).start();
             vcfm.awaitFinalization();
@@ -93,7 +125,10 @@ public class UtilVCF2DIST {
 
             // Print data
             int N = sampleNames.size();
-            ops.println(N + "\t" + vcfm.getNumVariants());
+            int numVariantsUsed = vcfm.isEmbeddingMode()
+                ? (vcfm.getNumVariants() - vcfm.getSkippedVariants())
+                : vcfm.getNumVariants();
+            ops.println(N + "\t" + numVariantsUsed);
             for (int i = 0; i < N; i++) {
                 ops.print(sampleNames.get(i));
                 for (int j = 0; j < N; j++) {
@@ -103,7 +138,7 @@ public class UtilVCF2DIST {
             }
             ops.close();
 
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             Logger.error(this, e.getMessage());
         }
     }

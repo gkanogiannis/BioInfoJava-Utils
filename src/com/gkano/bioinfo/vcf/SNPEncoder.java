@@ -185,4 +185,86 @@ public class SNPEncoder {
         }
         return sum;
     }
+
+    /**
+     * Computes allele dosage (count of alternate alleles) for each sample.
+     * Used for embedding-based distance calculation.
+     *
+     * @param snpLine full tab-separated VCF line
+     * @param numSamples number of samples in VCF
+     * @return array of allele dosages per sample (0, 1, 2, ... or -1 for missing)
+     */
+    public static int[] computeAlleleDosage(String snpLine, int numSamples) throws IllegalArgumentException {
+        int[] dosage = new int[numSamples];
+        Arrays.fill(dosage, -1); // -1 indicates missing
+
+        int expectedColumns = numSamples + 9;
+        int fieldStart = 0, fieldEnd, col = 0;
+        String[] fields = new String[expectedColumns];
+        while ((fieldEnd = snpLine.indexOf('\t', fieldStart)) != -1 && col < expectedColumns) {
+            fields[col++] = snpLine.substring(fieldStart, fieldEnd);
+            fieldStart = fieldEnd + 1;
+        }
+        fields[col] = snpLine.substring(fieldStart);
+
+        // Parse FORMAT field to locate GT index
+        String formatString = fields[8];
+        int gtIndex = -1;
+        int fieldIdx = 0;
+        int pos = 0;
+        while (formatString != null && pos < formatString.length()) {
+            int sep = formatString.indexOf(':', pos);
+            if (sep == -1) {
+                sep = formatString.length();
+            }
+            String token = formatString.substring(pos, sep);
+            if (token.equals("GT")) {
+                gtIndex = fieldIdx;
+                break;
+            }
+            pos = sep + 1;
+            fieldIdx++;
+        }
+        if (gtIndex == -1) {
+            throw new IllegalArgumentException("FORMAT field does not contain GT");
+        }
+
+        for (int i = 0; i < numSamples; i++) {
+            String sampleField = fields[i + 9];
+            String[] sampleParts = sampleField.split(":");
+            if (gtIndex >= sampleParts.length) {
+                continue; // missing
+            }
+            String genotype = sampleParts[gtIndex];
+            dosage[i] = computeGenotypeDosage(genotype);
+        }
+
+        return dosage;
+    }
+
+    /**
+     * Compute dosage (count of non-reference alleles) for a single genotype.
+     *
+     * @param genotype genotype string like "0/1", "1|1", "./.", etc.
+     * @return dosage count (0, 1, 2, ...) or -1 for missing
+     */
+    public static int computeGenotypeDosage(String genotype) {
+        if (genotype == null || genotype.equals(".") || genotype.contains(".")) {
+            return -1; // missing
+        }
+
+        String[] alleles = genotype.split("[/|]");
+        int dosage = 0;
+        for (String alleleStr : alleles) {
+            try {
+                int allele = Integer.parseInt(alleleStr);
+                if (allele > 0) {
+                    dosage++; // count non-reference alleles
+                }
+            } catch (NumberFormatException e) {
+                return -1; // invalid
+            }
+        }
+        return dosage;
+    }
 }

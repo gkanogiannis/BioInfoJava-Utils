@@ -441,11 +441,11 @@ public class HierarchicalCluster {
         return this.findClusters(Arrays.stream(result).asDoubleStream().toArray(), labels);
     }
 
-    public Object[] hclusteringTree(String[] sampleNames, double[][] distances) {
+    public Object[] hclusteringTree(String[] sampleNames, double[][] distances) throws Exception {
         return hclusteringTree(sampleNames, distances, null);
     }
 
-    public Object[] hclusteringTree(String[] sampleNames, float[][] distances, PrintStream ops) {
+    public Object[] hclusteringTree(String[] sampleNames, float[][] distances, PrintStream ops) throws Exception {
         int rows = distances.length;
         int cols = distances[0].length;
         double[][] output = new double[rows][cols];
@@ -458,7 +458,7 @@ public class HierarchicalCluster {
     }
 
     // Returns a String with the newick tree and the root Clade object
-    public Object[] hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) {
+    public Object[] hclusteringTree(String[] sampleNames, double[][] distances, PrintStream ops) throws Exception {
         try {
             ops = ops == null ? System.err : ops;
             Logger.info(this, " Distances=" + distances.length + "x" + distances[0].length, ops);
@@ -472,7 +472,7 @@ public class HierarchicalCluster {
             return new Object[] {treeString, root};
         } catch (Exception e) {
             Logger.error(this, e.getMessage());
-            return null;
+            throw e;
         }
     }
 

@@ -22,7 +22,6 @@
 package com.gkano.bioinfo.javautils;
 
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 
 import com.beust.jcommander.Parameter;
@@ -97,7 +96,7 @@ public class UtilDIST2TREE {
 			ops.println(treeString);
 			ops.close();
 		} 
-		catch (IOException e) {
+		catch (Exception e) {
 			Logger.error(this, e.getMessage());
 		}
 	}

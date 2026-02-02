@@ -39,18 +39,18 @@ import org.tukaani.xz.XZInputStream;
 
 import com.gkano.bioinfo.var.Logger;
 
-public class VCFStreamingIterator<T> implements Iterable<T>, Iterator<T>, AutoCloseable {
+public class VCFStreamingIterator implements Iterable<String>, Iterator<String>, AutoCloseable {
 
     private final List<String> inputPaths;
-    private final VCFDecoderInterface<T> decoder;
+    private final VCFDecoder decoder;
     private BufferedReader currentReader;
     private int currentPathIndex;
     private String nextLine;
-    private T nextDecoded;
+    private String nextDecoded;
     private boolean usingStdin = false;
     private boolean verbose = false;
 
-    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, boolean verbose, List<String> inputPaths) {
+    public VCFStreamingIterator(VCFDecoder decoder, boolean verbose, List<String> inputPaths) {
         this.inputPaths = inputPaths;
         this.decoder = decoder;
         this.verbose = verbose;
@@ -60,7 +60,7 @@ public class VCFStreamingIterator<T> implements Iterable<T>, Iterator<T>, AutoCl
         advance();      // Read first valid line
     }
 
-    public VCFStreamingIterator(VCFDecoderInterface<T> decoder, boolean verbose, String... inputPaths) {
+    public VCFStreamingIterator(VCFDecoder decoder, boolean verbose, String... inputPaths) {
         this(decoder, verbose, Arrays.asList(inputPaths));
     }
 
@@ -171,9 +171,9 @@ public class VCFStreamingIterator<T> implements Iterable<T>, Iterator<T>, AutoCl
     }
 
     @Override
-    public T next() {
+    public String next() {
         if (!hasNext()) throw new NoSuchElementException();
-        T result = nextDecoded;
+        String result = nextDecoded;
         advance();
         return result;
     }
@@ -184,7 +184,7 @@ public class VCFStreamingIterator<T> implements Iterable<T>, Iterator<T>, AutoCl
     }
 
     @Override
-    public Iterator<T> iterator() {
+    public Iterator<String> iterator() {
         return this;
     }
 

@@ -22,7 +22,6 @@
 package com.gkano.bioinfo.javautils;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
@@ -154,7 +153,7 @@ public class UtilVCF2ISTATS {
 				                   formatter.format(p_het)+"\t"+formatter.format(p_alt)+"\t"+formatter.format(p_ref)+"\t"+formatter.format(p_miss));
 			}
 		} 
-		catch (IOException e) {
+		catch (Exception e) {
 			Logger.error(this, e.getMessage());
 		}
 	}

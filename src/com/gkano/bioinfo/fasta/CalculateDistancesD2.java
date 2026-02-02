@@ -155,7 +155,7 @@ class CalculateD2ChildTask extends RecursiveAction {
 
 class DissimilarityMeasuresD2 {
 	
-	public static double d2_S_Dissimilarity(SequenceD2Interface X, SequenceD2Interface Y){
+	public static double d2_S_Dissimilarity(SequenceD2 X, SequenceD2 Y){
 		double D2_S = 0.0;
 		double tempX = 0.0;
 		double tempY = 0.0;
@@ -234,7 +234,7 @@ class DissimilarityMeasuresD2 {
 		return 0.5*(1.0 - temp);
 	}
 	
-	public static double d2_Star_Dissimilarity(SequenceD2Interface X, SequenceD2Interface Y){
+	public static double d2_Star_Dissimilarity(SequenceD2 X, SequenceD2 Y){
 		double D2_Star = 0.0;
 		double tempX = 0.0;
 		double tempY = 0.0;

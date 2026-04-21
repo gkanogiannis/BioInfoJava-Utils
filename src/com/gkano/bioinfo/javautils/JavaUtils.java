@@ -49,6 +49,7 @@ public class JavaUtils {
                 .addCommand(UtilDIST2TREE.getUtilName(), new UtilDIST2TREE()) // in R
                 .addCommand(UtilDIST2Clusters.getUtilName(), new UtilDIST2Clusters()) // in R
                 .addCommand(UtilFASTA2DIST.getUtilName(), new UtilFASTA2DIST()) // in R
+                .addCommand(UtilFASTA2TREE.getUtilName(), new UtilFASTA2TREE()) // in R
                 .addCommand(UtilVCF2ISTATS.getUtilName(), new UtilVCF2ISTATS()) // in R
 
                 //jc.addCommand(UtilDIST2Hist.getUtilName(), new UtilDIST2Hist()); //

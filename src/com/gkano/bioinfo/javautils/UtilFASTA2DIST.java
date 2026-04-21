@@ -25,16 +25,12 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.gkano.bioinfo.fasta.CalculateDistancesD2;
-import com.gkano.bioinfo.fasta.FastaManager;
-import com.gkano.bioinfo.fasta.SequenceD2;
-import com.gkano.bioinfo.fasta.SequenceProcessor;
+import com.gkano.bioinfo.fasta2.DistanceCalculator;
+import com.gkano.bioinfo.fasta2.FastaManager;
+import com.gkano.bioinfo.fasta2.SequenceD2;
 import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 
@@ -71,10 +67,10 @@ public class UtilFASTA2DIST {
 	@Parameter(names = {"--kmerSize","-k"}, description = "Kmer size (default: 4)")
 	private Integer k = 4;
 
-	@Parameter(names = { "--normalize", "-n" })
+	@Parameter(names = { "--normalize", "-n" }, description = "Normalize probabilities (default: false)")
 	private boolean normalize = false;
-	
-	@Parameter(names = { "--numberOfThreads", "-t" })
+
+	@Parameter(names = { "--numberOfThreads", "-t" }, description = "Number of threads (default: 1)")
 	private int numOfThreads = 1;
 
 	public void go() {
@@ -85,46 +81,30 @@ public class UtilFASTA2DIST {
             inputFileNames.addAll(positionalInputFiles);
             inputFileNames.addAll(namedInputFiles);
 
-			if (inputFileNames.isEmpty()) {
-				Logger.error(this, "No FASTA input files provided.");
-				return;
-            }
+			// Create manager with integrated thread control
+			var manager = new FastaManager.Builder(inputFileNames)
+				.withProcessorThreads(numOfThreads)
+				.withKmerSize(k)
+				.withNormalization(normalize)
+				.keepQualities(isFastq)
+				.withVerbose(verbose)
+				.build();
 
-			int cpus = Runtime.getRuntime().availableProcessors();
-			int usingThreads = (cpus < numOfThreads ? cpus : numOfThreads);
-			if(verbose) System.err.println("cpus=" + cpus);
-			if(verbose) System.err.println("using=" + usingThreads);
+			// Initialize - this starts all threads internally
+			manager.init();
 
-			ConcurrentHashMap<Integer, SequenceD2> seqVectors = new ConcurrentHashMap<>();
+			// Wait for completion
+			manager.awaitCompletion();
 
-			CountDownLatch startSignal = new CountDownLatch(1);
-			CountDownLatch doneSignal = new CountDownLatch(usingThreads + 1);
+			// Get results
+			ConcurrentHashMap<Integer, SequenceD2> seqVectors = manager.getResults();
+			List<String> seqNames = manager.getSequenceNames();
+			List<Integer> seqIds = manager.getSequenceIds();
 
-			//if(verbose) System.err.println(GeneralTools.time() + " START ");
-
-			ExecutorService pool = Executors.newFixedThreadPool(usingThreads + 1);
-
-			//Map<Integer, SequenceProcessor> sequenceProcessors = new HashMap<>();
-			FastaManager frm = new FastaManager(isFastq, false, inputFileNames, startSignal, doneSignal);
-			pool.execute(frm);
-
-			SequenceProcessor.resetCounters();
-			// Starting threads
-			for (int i = 0; i < usingThreads; i++) {
-				SequenceProcessor sp = new SequenceProcessor(seqVectors, frm, k, normalize, startSignal, doneSignal, verbose);
-				//sequenceProcessors.put(sp.getId(), sp);
-				pool.execute(sp);
-			}
-
-			doneSignal.await();
-			pool.shutdown();
-				
-			List<String> seqNames = frm.getSequenceNames();
-			List<Integer> seqIds = frm.getSequenceIds();
-			
-			// Calculate distances
-			CalculateDistancesD2 fj = new CalculateDistancesD2(verbose);
-			double[][] distances = fj.calculateDistances(usingThreads, seqVectors, seqNames, seqIds, frm);
+			// Calculate distances. Pass seqIds so that row/col order of the
+			// returned matrix matches seqNames (both in parse order).
+			var calc = new DistanceCalculator(numOfThreads);
+			double[][] distances = calc.computeD2Distances(seqVectors, seqIds);
 			
 			// Print data
 			int seqCounter = 0;
@@ -144,7 +124,7 @@ public class UtilFASTA2DIST {
 			ops.close();
 			//if(verbose) System.err.println(GeneralTools.time()+" Samples Processed : \t"+sampleCounter);
 		} 
-		catch (InterruptedException e) {
+		catch (Exception e) {
 			Logger.error(this, e.getMessage());
 		}
 	}

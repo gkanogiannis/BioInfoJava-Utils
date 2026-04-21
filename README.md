@@ -41,7 +41,7 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 
 ### Prerequisites
 
-* Java 17 or higher
+* Java 11 or higher
 * Maven (for building the project)
 
 ### Building from Source

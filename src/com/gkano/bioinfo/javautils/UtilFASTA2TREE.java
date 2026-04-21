@@ -24,9 +24,14 @@ package com.gkano.bioinfo.javautils;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.gkano.bioinfo.fasta2.DistanceCalculator;
+import com.gkano.bioinfo.fasta2.FastaManager;
+import com.gkano.bioinfo.fasta2.SequenceD2;
+import com.gkano.bioinfo.tree.HierarchicalCluster;
 import com.gkano.bioinfo.var.GeneralTools;
 import com.gkano.bioinfo.var.Logger;
 
@@ -61,16 +66,50 @@ public class UtilFASTA2TREE {
 	@Parameter(names = {"--kmerSize","-k"}, description = "Kmer size (default: 4)")
 	private Integer k = 4;
 
-	@Parameter(names = { "--normalize", "-n" })
+	@Parameter(names = { "--normalize", "-n" }, description = "Normalize probabilities (default: false)")
 	private boolean normalize = false;
-	
-	@Parameter(names = { "--numberOfThreads", "-t" })
+
+	@Parameter(names = { "--numberOfThreads", "-t" }, description = "Number of threads (default: 1)")
 	private int numOfThreads = 1;
 
 	public void go() {
 		try (PrintStream ops = GeneralTools.getPrintStreamOrExit(outputFile, this)) {
 			
+			// Merge all FASTA inputs into one list
+            List<String> inputFileNames = new ArrayList<>();
+            inputFileNames.addAll(positionalInputFiles);
+            inputFileNames.addAll(namedInputFiles);
+
+			// Create manager with integrated thread control
+			var manager = new FastaManager.Builder(inputFileNames)
+				.withProcessorThreads(numOfThreads)
+				.withKmerSize(k)
+				.withNormalization(normalize)
+				.keepQualities(isFastq)
+				.withVerbose(verbose)
+				.build();
+
+			// Initialize - this starts all threads internally
+			manager.init();
+
+			// Wait for completion
+			manager.awaitCompletion();
+
+			// Get results
+			ConcurrentHashMap<Integer, SequenceD2> seqVectors = manager.getResults();
+			List<String> seqNames = manager.getSequenceNames();
+			List<Integer> seqIds = manager.getSequenceIds();
+
+			// Calculate distances. Pass seqIds so row/col order matches seqNames.
+			var calc = new DistanceCalculator(numOfThreads);
+			double[][] distances = calc.computeD2Distances(seqVectors, seqIds);
 			
+			HierarchicalCluster hc = new HierarchicalCluster(verbose);
+            String treeString = (String) hc.hclusteringTree(seqNames.toArray(String[]::new), distances, null)[0];
+			//ops.println("Original tree:");
+            ops.println(treeString);
+
+			ops.close();
 		} 
 		catch (Exception e) {
 			Logger.error(this, e.getMessage());

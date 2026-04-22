@@ -36,6 +36,8 @@ import com.gkano.bioinfo.vcf.SNPEncoder;
 import com.gkano.bioinfo.vcf.VCFManager;
 import com.gkano.bioinfo.vcf.VariantEmbeddingLoader;
 import com.gkano.bioinfo.vcf.VariantKeyExtractor;
+import com.gkano.bioinfo.vcf.WindowPolicy;
+import com.gkano.bioinfo.vcf.WindowedDistanceWriter;
 
 @SuppressWarnings("FieldMayBeFinal")
 @Parameters(commandDescription = "VCF2DIST")
@@ -80,6 +82,26 @@ public class UtilVCF2DIST {
                description = "Variant key format for embedding lookup: CHROM_POS, CHROM_POS_REF_ALT, or VCF_ID")
     private String variantKeyFormat = "CHROM_POS_REF_ALT";
 
+    @Parameter(names = {"--window-bp"},
+               description = "Emit one distance matrix per genomic window of N base pairs (mutually exclusive with --window-variants)")
+    private Integer windowBp;
+
+    @Parameter(names = {"--window-variants"},
+               description = "Emit one distance matrix per N consecutive variants (mutually exclusive with --window-bp)")
+    private Integer windowVariants;
+
+    @Parameter(names = {"--step"},
+               description = "Window step (defaults to window size, i.e. tiled). Sliding windows not yet implemented.")
+    private Integer windowStep;
+
+    @Parameter(names = {"--min-variants"},
+               description = "Minimum number of variants required to emit a window (default 1)")
+    private int windowMinVariants = 1;
+
+    @Parameter(names = {"--long"},
+               description = "Emit long-form TSV (chrom, start, end, sample_i, sample_j, dist) instead of concatenated matrices")
+    private boolean longFormat = false;
+
     //@SuppressWarnings("unused")
     //@Parameter(names = {"--ignoreMissing", "-m"})
     //private boolean ignoreMissing = false;
@@ -115,6 +137,23 @@ public class UtilVCF2DIST {
                 vcfm.setEmbeddings(embeddings, keyFormat);
             }
 
+            WindowPolicy windowPolicy = buildWindowPolicy();
+            if (windowPolicy != null) {
+                if (embeddingsFile != null && !embeddingsFile.isEmpty()) {
+                    Logger.error(this, "embeddings (-e) are not yet supported with windowed output");
+                    return;
+                }
+                WindowedDistanceWriter writer = longFormat
+                        ? WindowedDistanceWriter.longTsv(ops)
+                        : WindowedDistanceWriter.concat(ops);
+                vcfm.setWindowing(windowPolicy, writer);
+                vcfm.init();
+                new Thread(vcfm).start();
+                vcfm.awaitFinalization();
+                ops.flush();
+                return;
+            }
+
             vcfm.init();
             new Thread(vcfm).start();
             vcfm.awaitFinalization();
@@ -141,5 +180,18 @@ public class UtilVCF2DIST {
         } catch (Exception e) {
             Logger.error(this, e.getMessage());
         }
+    }
+
+    private WindowPolicy buildWindowPolicy() {
+        if (windowBp != null && windowVariants != null) {
+            throw new IllegalArgumentException("--window-bp and --window-variants are mutually exclusive");
+        }
+        if (windowBp == null && windowVariants == null) {
+            return null;
+        }
+        WindowPolicy.Mode mode = (windowBp != null) ? WindowPolicy.Mode.BP : WindowPolicy.Mode.VARIANTS;
+        int size = (windowBp != null) ? windowBp : windowVariants;
+        int step = (windowStep != null) ? windowStep : size;
+        return new WindowPolicy(mode, size, step, windowMinVariants);
     }
 }

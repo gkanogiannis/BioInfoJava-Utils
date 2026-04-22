@@ -91,7 +91,7 @@ public class DistanceCalculator {
 
     /**
      * Compute pairwise D2_S distances using the map's own key iteration order.
-     * Row/col order is not stable across runs — prefer
+     * Row/col order is not stable across runs; prefer
      * {@link #computeD2Distances(ConcurrentHashMap, List)} when label alignment
      * matters.
      */

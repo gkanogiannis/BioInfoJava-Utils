@@ -38,6 +38,8 @@ import com.gkano.bioinfo.vcf.SNPEncoder;
 import com.gkano.bioinfo.vcf.VCFManager;
 import com.gkano.bioinfo.vcf.VariantEmbeddingLoader;
 import com.gkano.bioinfo.vcf.VariantKeyExtractor;
+import com.gkano.bioinfo.vcf.WindowPolicy;
+import com.gkano.bioinfo.vcf.WindowedDistanceWriter;
 
 @SuppressWarnings("FieldMayBeFinal")
 @Parameters(commandDescription = "VCF2TREE")
@@ -85,6 +87,22 @@ public class UtilVCF2TREE {
                description = "Variant key format for embedding lookup: CHROM_POS, CHROM_POS_REF_ALT, or VCF_ID")
     private String variantKeyFormat = "CHROM_POS_REF_ALT";
 
+    @Parameter(names = {"--window-bp"},
+               description = "Emit one tree per genomic window of N base pairs (mutually exclusive with --window-variants)")
+    private Integer windowBp;
+
+    @Parameter(names = {"--window-variants"},
+               description = "Emit one tree per N consecutive variants (mutually exclusive with --window-bp)")
+    private Integer windowVariants;
+
+    @Parameter(names = {"--step"},
+               description = "Window step (defaults to window size, i.e. tiled). Sliding windows not yet implemented.")
+    private Integer windowStep;
+
+    @Parameter(names = {"--min-variants"},
+               description = "Minimum number of variants required to emit a window (default 1)")
+    private int windowMinVariants = 1;
+
     //@SuppressWarnings("unused")
     //@Parameter(names = { "--ignoreMissing", "-m" })
     //private boolean ignoreMissing = false;
@@ -107,6 +125,35 @@ public class UtilVCF2TREE {
 
             // Set number of bootstraps
             vcfm.setNumBootstraps(numBootstraps);
+
+            WindowPolicy windowPolicy = buildWindowPolicy();
+            if (windowPolicy != null) {
+                if (numBootstraps > 0) {
+                    Logger.error(this, "bootstrap (-b) is not yet supported with windowed output");
+                    return;
+                }
+                if (embeddingsFile != null && !embeddingsFile.isEmpty()) {
+                    Logger.error(this, "embeddings (-e) are not yet supported with windowed output");
+                    return;
+                }
+                final boolean v = verbose;
+                WindowedDistanceWriter writer = (chrom, start, end, n, names, d) -> {
+                    ops.println("# window chrom=" + chrom + " start=" + start + " end=" + end
+                            + " nvariants=" + n + " nsamples=" + names.length);
+                    try {
+                        ops.println((String) new HierarchicalCluster(v)
+                                .hclusteringTree(names, d, null)[0]);
+                    } catch (Exception e) {
+                        Logger.error(this, "Failed to build per-window tree: " + e.getMessage());
+                    }
+                };
+                vcfm.setWindowing(windowPolicy, writer);
+                vcfm.init();
+                new Thread(vcfm).start();
+                vcfm.awaitFinalization();
+                ops.flush();
+                return;
+            }
 
             // Load and set embeddings if provided
             if (embeddingsFile != null && !embeddingsFile.isEmpty()) {
@@ -176,5 +223,18 @@ public class UtilVCF2TREE {
         } catch (Exception e) {
             Logger.error(this, e.getMessage());
         }
+    }
+
+    private WindowPolicy buildWindowPolicy() {
+        if (windowBp != null && windowVariants != null) {
+            throw new IllegalArgumentException("--window-bp and --window-variants are mutually exclusive");
+        }
+        if (windowBp == null && windowVariants == null) {
+            return null;
+        }
+        WindowPolicy.Mode mode = (windowBp != null) ? WindowPolicy.Mode.BP : WindowPolicy.Mode.VARIANTS;
+        int size = (windowBp != null) ? windowBp : windowVariants;
+        int step = (windowStep != null) ? windowStep : size;
+        return new WindowPolicy(mode, size, step, windowMinVariants);
     }
 }

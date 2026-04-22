@@ -90,7 +90,7 @@ class KmerEncoderTest {
 
     @Test
     void reverseComplementOfPalindromeEqualsForward() {
-        // "ACGT" IS its own reverse complement — sanity-check the invariant.
+        // "ACGT" IS its own reverse complement; sanity-check the invariant.
         Sequence s = seqOf("ACGT");
         long fwd = KmerEncoder.encodeToLong(s, 0, 4, false, false);
         long rev = KmerEncoder.encodeToLong(s, 0, 4, true, false);

@@ -27,9 +27,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,8 +45,22 @@ import com.gkano.bioinfo.var.Logger;
 @SuppressWarnings("FieldMayBeFinal")
 public class VCFManager implements Runnable {
 
-    //private static final String POISON_PILL = "__END__";
-    private final List<String> POISON_PILL_BATCH = Collections.emptyList();
+    /**
+     * Queue item passed from the producer to worker threads.
+     * Three kinds: DATA (a batch of variant lines), BARRIER (window boundary
+     * sentinel, each worker must consume exactly one per window flush) and
+     * POISON (terminate worker).
+     */
+    static final class Batch {
+        enum Kind { DATA, BARRIER, POISON }
+        final Kind kind;
+        final List<String> lines;
+        private Batch(Kind k, List<String> l) { kind = k; lines = l; }
+        static Batch data(List<String> l) { return new Batch(Kind.DATA, l); }
+        static final Batch BARRIER = new Batch(Kind.BARRIER, null);
+        static final Batch POISON = new Batch(Kind.POISON, null);
+    }
+
     private final int batchSize = 1000;
 
     private final List<String> inputFileNames;
@@ -53,8 +69,15 @@ public class VCFManager implements Runnable {
     private final Function<String, String> variantParser;
     private boolean verbose = false;
 
-    private BlockingQueue<List<String>> variantRawCache;
+    private BlockingQueue<Batch> variantRawCache;
     private Map<String, int[]> genotypeEncodingCache;
+
+    // Windowing state (only populated when WindowPolicy is configured)
+    private WindowPolicy windowPolicy;
+    private WindowedDistanceWriter windowWriter;
+    private CyclicBarrier windowBarrier;
+    private BlockingQueue<WindowPolicy.Window> pendingWindows;
+    private ProcessorResult[] workerResults;
 
     private List<String> commentData;
     private String headerData;
@@ -181,6 +204,21 @@ public class VCFManager implements Runnable {
         return embeddingDim;
     }
 
+    /**
+     * Configure windowed processing. When set, {@link #run()} will dispatch
+     * to {@link #runWindowed()} which emits one distance matrix per window
+     * via the supplied writer instead of accumulating a single global matrix.
+     * Must be called before {@link #init()}.
+     */
+    public void setWindowing(WindowPolicy policy, WindowedDistanceWriter writer) {
+        this.windowPolicy = policy;
+        this.windowWriter = writer;
+    }
+
+    private boolean isWindowed() {
+        return windowPolicy != null && windowPolicy.getMode() != WindowPolicy.Mode.NONE;
+    }
+
     public void init() {
         Logger.setVerbose(verbose);
         if (inputFileNames == null || inputFileNames.isEmpty()) {
@@ -203,6 +241,12 @@ public class VCFManager implements Runnable {
 
         pool = Executors.newFixedThreadPool(usingThreads);
 
+        if (isWindowed()) {
+            workerResults = new ProcessorResult[usingThreads];
+            pendingWindows = new LinkedBlockingQueue<>();
+            windowBarrier = new CyclicBarrier(usingThreads, this::windowBarrierAction);
+        }
+
         if (embeddingMode) {
             initEmbeddingProcessors();
         } else {
@@ -217,6 +261,7 @@ public class VCFManager implements Runnable {
         variantProcessors = new ArrayList<>();
 
         for (int t = 0; t < usingThreads; t++) {
+            final int slot = t;
             CompletableFuture<ProcessorResult> variantProcessor = CompletableFuture.supplyAsync(() -> {
                 try {
                     // Wait until ploidy is known
@@ -230,24 +275,38 @@ public class VCFManager implements Runnable {
 
                 int numReplicates = numBootstraps > 0 ? numBootstraps + 1 : 1;
                 ProcessorResult result = new ProcessorResult(numReplicates, numSamples);
+                if (workerResults != null) {
+                    workerResults[slot] = result;
+                }
                 java.util.Random rand = new java.util.Random();
 
-                List<String> batch;
+                Batch item;
                 int[][] variantEncoded;
                 int count, step;
                 int[] di, dj;
                 long norm, dotProd;
                 while (true) {
                     try {
-                        batch = variantRawCache.take();
+                        item = variantRawCache.take();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         break;
                     }
-                    if (batch.isEmpty()) {
-                        break; // poison pill
+                    if (item.kind == Batch.Kind.POISON) {
+                        break;
                     }
-                    for (String variant : batch) {
+                    if (item.kind == Batch.Kind.BARRIER) {
+                        try {
+                            windowBarrier.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        } catch (BrokenBarrierException e) {
+                            break;
+                        }
+                        continue;
+                    }
+                    for (String variant : item.lines) {
                         count = currVariantCount.incrementAndGet();
                         if(verbose){
                             step = GeneralTools.getAdaptiveVariantStep(count);
@@ -316,21 +375,34 @@ public class VCFManager implements Runnable {
                 EmbeddingProcessorResult result = new EmbeddingProcessorResult(numReplicates, numSamples, embeddingDim);
                 java.util.Random rand = new java.util.Random();
 
-                List<String> batch;
+                Batch item;
                 int count, step;
 
                 while (true) {
                     try {
-                        batch = variantRawCache.take();
+                        item = variantRawCache.take();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         break;
                     }
-                    if (batch.isEmpty()) {
-                        break; // poison pill
+                    if (item.kind == Batch.Kind.POISON) {
+                        break;
+                    }
+                    if (item.kind == Batch.Kind.BARRIER) {
+                        // Embedding mode does not currently support windowing;
+                        // a misconfigured caller still gets a clean exit.
+                        try {
+                            windowBarrier.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        } catch (BrokenBarrierException e) {
+                            break;
+                        }
+                        continue;
                     }
 
-                    for (String variant : batch) {
+                    for (String variant : item.lines) {
                         count = currVariantCount.incrementAndGet();
                         if (verbose) {
                             step = GeneralTools.getAdaptiveVariantStep(count);
@@ -404,6 +476,14 @@ public class VCFManager implements Runnable {
 
     @Override
     public void run() {
+        if (isWindowed()) {
+            runWindowed();
+        } else {
+            runStandard();
+        }
+    }
+
+    private void runStandard() {
         try {
             Logger.info(this, "START READ" + (embeddingMode ? " (embedding mode)" : ""));
 
@@ -415,13 +495,13 @@ public class VCFManager implements Runnable {
                 }
             }
             // Push the last partial batch if needed
-            if (!batch.isEmpty()) variantRawCache.put(batch);
+            if (!batch.isEmpty()) variantRawCache.put(Batch.data(new ArrayList<>(batch)));
             // If ploidy was never inferred (no data lines), release workers to exit cleanly
             if (ploidy <= 0) {
                 startSignal.countDown();
             }
             // putting POISON pills
-            for (int i = 0; i < usingThreads; i++) variantRawCache.put(POISON_PILL_BATCH);
+            for (int i = 0; i < usingThreads; i++) variantRawCache.put(Batch.POISON);
 
             Logger.info(this, "END READ");
 
@@ -447,6 +527,176 @@ public class VCFManager implements Runnable {
         } finally {
             shutdown();
         }
+    }
+
+    /**
+     * Producer loop for windowed mode. For each variant, extract CHROM/POS,
+     * consult {@link WindowPolicy} to detect window boundaries, and inject
+     * BARRIER sentinels between window batches so worker accumulators are
+     * merged + emitted + reset between windows.
+     */
+    private void runWindowed() {
+        try {
+            Logger.info(this, "START READ (windowed mode)");
+
+            VCFDecoder decoder = new VCFDecoder();
+            List<String> batch = new ArrayList<>(2500);
+            try (VCFStreamingIterator iterator = new VCFStreamingIterator(decoder, verbose, inputFileNames)) {
+                for (String line : iterator) {
+                    if (line == null) continue;
+                    if (line.startsWith("##")) {
+                        commentData.add(line);
+                    } else if (line.startsWith("#")) {
+                        headerData = line;
+                        sampleNames = getSampleNamesFromHeader();
+                        if (sampleNames == null || sampleNames.isEmpty()) {
+                            throw new IllegalStateException("No samples detected from #CHROM header.");
+                        }
+                        numSamples = sampleNames.size();
+                    } else {
+                        // Extract CHROM and POS without splitting the whole line.
+                        int tab1 = line.indexOf('\t');
+                        if (tab1 < 0) continue;
+                        int tab2 = line.indexOf('\t', tab1 + 1);
+                        if (tab2 < 0) continue;
+                        String chrom = line.substring(0, tab1);
+                        int pos;
+                        try {
+                            pos = Integer.parseInt(line.substring(tab1 + 1, tab2));
+                        } catch (NumberFormatException nfe) {
+                            continue;
+                        }
+
+                        if (ploidy <= 0) {
+                            try {
+                                int[] ploidy_maxAlleles = SNPEncoder.guessPloidyAndMaxAllele(line);
+                                ploidy = ploidy_maxAlleles[0];
+                                maxAlleles = ploidy_maxAlleles[1];
+                                if (ploidy > 0) startSignal.countDown();
+                            } catch (IllegalArgumentException e) {
+                                throw new IllegalStateException(
+                                        "Failed to infer ploidy / maxAlleles: " + e.getMessage(), e);
+                            }
+                        }
+
+                        boolean boundary = windowPolicy.advance(chrom, pos);
+                        if (boundary) {
+                            if (!batch.isEmpty()) {
+                                variantRawCache.put(Batch.data(new ArrayList<>(batch)));
+                                batch.clear();
+                            }
+                            WindowPolicy.Window closed = windowPolicy.consumeClosedWindow();
+                            if (closed != null) pendingWindows.put(closed);
+                            for (int i = 0; i < usingThreads; i++) {
+                                variantRawCache.put(Batch.BARRIER);
+                            }
+                        }
+
+                        String parsed = variantParser.apply(line);
+                        batch.add(parsed);
+                        if (batch.size() >= batchSize) {
+                            variantRawCache.put(Batch.data(new ArrayList<>(batch)));
+                            batch.clear();
+                        }
+                    }
+                }
+            }
+
+            // Flush trailing batch and emit the final still-open window.
+            if (!batch.isEmpty()) {
+                variantRawCache.put(Batch.data(new ArrayList<>(batch)));
+                batch.clear();
+            }
+            WindowPolicy.Window finalWin = windowPolicy.finalizeCurrent();
+            if (finalWin != null) {
+                pendingWindows.put(finalWin);
+                for (int i = 0; i < usingThreads; i++) {
+                    variantRawCache.put(Batch.BARRIER);
+                }
+            }
+
+            if (ploidy <= 0) startSignal.countDown();
+            for (int i = 0; i < usingThreads; i++) variantRawCache.put(Batch.POISON);
+
+            Logger.info(this, "END READ");
+
+            pool.shutdown();
+            pool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+            numVariants = currVariantCount.get();
+            Logger.info(this, "Processed variants :\t" + numVariants);
+
+            doneSignal.countDown();
+
+        } catch (Exception e) {
+            Logger.error(this, e.getMessage());
+            shutdown();
+            doneSignal.countDown();
+            Thread.currentThread().interrupt();
+        } finally {
+            shutdown();
+        }
+    }
+
+    /**
+     * Runs in the last worker to arrive at {@link #windowBarrier}, while every
+     * other worker is parked inside await(). All shared state is therefore
+     * single-threaded for the duration of this action.
+     */
+    private void windowBarrierAction() {
+        WindowPolicy.Window w = pendingWindows.poll();
+        if (w != null && w.count >= windowPolicy.getMinVariants()) {
+            double[][] d = reduceCurrentFromShared();
+            String[] namesArr = sampleNames.toArray(new String[0]);
+            try {
+                windowWriter.write(w.chrom, w.start, w.end, w.count, namesArr, d);
+            } catch (Exception e) {
+                Logger.error(this, "Failed to emit window: " + e.getMessage());
+            }
+        }
+        // Reset accumulators for the next window.
+        for (ProcessorResult r : workerResults) {
+            if (r == null) continue;
+            for (int i = 0; i < numSamples; i++) {
+                r.norm[0][i] = 0L;
+                long[] row = r.dotProd[0][i];
+                for (int j = 0; j < numSamples; j++) {
+                    row[j] = 0L;
+                }
+            }
+        }
+    }
+
+    /**
+     * Per-window reduction equivalent to {@link #reduceDotProdToDistances()},
+     * but reads accumulators from {@link #workerResults} (live arrays) instead
+     * of joined CompletableFutures, and uses only replicate 0.
+     */
+    private double[][] reduceCurrentFromShared() {
+        long[][] finalDotProd = new long[numSamples][numSamples];
+        long[] finalNorm = new long[numSamples];
+        for (ProcessorResult r : workerResults) {
+            if (r == null) continue;
+            for (int i = 0; i < numSamples; i++) {
+                finalNorm[i] += r.norm[0][i];
+                for (int j = i; j < numSamples; j++) {
+                    finalDotProd[i][j] += r.dotProd[0][i][j];
+                }
+            }
+        }
+        double[][] cosineDist = new double[numSamples][numSamples];
+        for (int i = 0; i < numSamples; i++) {
+            double normI = Math.sqrt(finalNorm[i]);
+            for (int j = i; j < numSamples; j++) {
+                double normJ = Math.sqrt(finalNorm[j]);
+                double dot = finalDotProd[i][j];
+                double similarity = ((normI > 0 && normJ > 0) ? (dot / (normI * normJ)) : 0.0);
+                if (j == i && normI == 0 && normJ == 0) similarity = 1.0;
+                double dist = 1.0 - similarity;
+                if (dist < 0) dist = 0.0;
+                cosineDist[i][j] = cosineDist[j][i] = dist;
+            }
+        }
+        return cosineDist;
     }
 
     private void processVariantLine(String line, List<String> batch) throws Exception {
@@ -476,7 +726,7 @@ public class VCFManager implements Runnable {
                 String parsed = variantParser.apply(line);
                 batch.add(parsed);
                 if (batch.size() >= batchSize) {
-                    variantRawCache.put(new ArrayList<>(batch));
+                    variantRawCache.put(Batch.data(new ArrayList<>(batch)));
                     batch.clear();
                 }
             }

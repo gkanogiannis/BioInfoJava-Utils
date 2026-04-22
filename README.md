@@ -1,6 +1,6 @@
 # BioInfoJava-Utils
 
-**BioInfoJava-Utils** is a modular Java library providing high-performance implementations of core bioinformatics algorithms, such as distance matrix computation and phylogenetic tree construction from **VCF** and **FASTA** files.
+**BioInfoJava-Utils** is a modular Java library providing high-performance implementations of core bioinformatics algorithms, such as distance matrix computation and phylogenetic tree construction (via hierarchical clustering) from **VCF** and **FASTA** files.
 
 This library serves as the computational backend for the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) software suite, which offers a flexible and user-friendly interface to these tools across multiple platforms and environments.
 
@@ -8,7 +8,8 @@ This library serves as the computational backend for the [`fastreeR`](https://gi
 
 The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](https://github.com/gkanogiannis/fastreeR) interface, which is accessible in the following ways:
 
-* 🆕 **Java Backend ([v2.5.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.5.0)) !!** introduces **embedding-based distance calculation** for VCF files. Provide pre-computed variant embeddings (from genomic language models like [BioFM](https://huggingface.co/m42-health/BioFM-265M), DNA-BERT, Nucleotide Transformer, etc.) to weight variant contributions during distance computation.
+* 🆕 **Java Backend ([v2.7.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.7.0)) !!** introduces **windowed / streaming VCF distance & tree output**. Emit one distance matrix (or Newick tree) per genomic window of N base pairs (`--window-bp`) or per N consecutive variants (`--window-variants`) for `VCF2DIST` and `VCF2TREE`, with optional long-form TSV output (`--long`).
+* Java Backend ([v2.5.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.5.0)) introduces **embedding-based distance calculation** for VCF files. Provide pre-computed variant embeddings (from genomic language models like [BioFM](https://huggingface.co/m42-health/BioFM-265M), DNA-BERT, Nucleotide Transformer, etc.) to weight variant contributions during distance computation.
 * Java Backend ([v2.3.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.3.0)) supports reading from gzip (for example .gz), bzip2 (for example .bz2) and xz compressed VCF files.
 * Java Backend ([v2.2.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/v2.2.0)) implements streaming bootstrap; from VCF file get a newick tree with encoded bootstrap support values
 * Java Backend ([v2.0.0](https://github.com/gkanogiannis/BioInfoJava-Utils/releases/tag/2.0.0)) 100x times **FAST**re**ER** and only a couple hundred MB RAM needed. Java 11+ suggested.
@@ -27,12 +28,13 @@ The functionality of **BioInfoJava-Utils** is exposed through the [`fastreeR`](h
 ## Features
 
 * Reads directly from plain, gzip, bzip2 or xz VCF files.
+* 🪟 **Windowed / streaming output** emits one distance matrix or Newick tree per genomic window (by base pairs or variant count) for `VCF2DIST` and `VCF2TREE`
 * 🧠 **Embedding-based distance calculation** using pre-computed variant embeddings from genomic language models
 * 🥾 **Streaming bootstrap** support in the VCF2TREE utility
 * 🚀 Ultra-fast with a superior multithreaded concurrency model
   and minimal RAM usage, **from GBs down to just MBs!**
 * ⚙️ Compute sample-wise **distance matrices** from VCF (cosine) or FASTA (D2S) files
-* 🌳 Build **phylogenetic trees** using neighbor-joining algorithm
+* 🌳 Build **phylogenetic trees** using **hierarchical clustering** (single, complete, or average linkage; complete by default)
 * 🧬 Support for **hierarchical clustering** with dynamic tree pruning
 * 🔄 **Multithreaded** processing for large input files
 * 📦 Integrates seamlessly into diverse environments (R, Python, Docker, Java)
@@ -149,6 +151,99 @@ java -jar BioInfoJavaUtils.jar VCF2DIST \
 ```
 
 Variants without matching embeddings are automatically skipped, and the tool reports how many variants were used vs. skipped.
+
+## Windowed / Streaming Output
+
+Version 2.7.0 introduces **windowed output** for `VCF2DIST` and `VCF2TREE`. Instead of producing a single genome-wide distance matrix or tree, the tools can stream one matrix (or Newick tree) per genomic window. This enables local-ancestry analyses, introgression scans, recombination-rate studies, and any workflow that needs sample relationships measured along the genome.
+
+### How It Works
+
+Variants are streamed in input order and grouped into windows defined either by base-pair span (`--window-bp`) or by consecutive variant count (`--window-variants`). When a window closes, all worker threads synchronize on a barrier, the per-window distance matrix is reduced from shared accumulators, the writer emits the window, and the accumulators are zeroed before the next window opens. Windows never straddle chromosomes; a contig change always closes the current window.
+
+The non-windowed code path is unchanged and remains byte-identical to previous releases.
+
+### Command Line Options
+
+| Option              | Description                                                                                                |
+|---------------------|------------------------------------------------------------------------------------------------------------|
+| `--window-bp`       | Emit one matrix/tree per window of N base pairs (mutually exclusive with `--window-variants`)              |
+| `--window-variants` | Emit one matrix/tree per N consecutive variants (mutually exclusive with `--window-bp`)                    |
+| `--step`            | Window step. Defaults to window size (tiled). Sliding windows (`step != size`) are not yet implemented.    |
+| `--min-variants`    | Minimum number of variants required to emit a window (default 1; smaller windows are skipped silently)     |
+| `--long`            | (`VCF2DIST` only) Emit long-form TSV `chrom, start, end, sample_i, sample_j, dist` instead of matrices     |
+
+### Output Formats
+
+`VCF2DIST` default (concatenated matrices); one block per window:
+
+```text
+# window chrom=chr1 start=0 end=100000 nvariants=842 nsamples=3
+3	842
+s1	0	0.4231	0.5102
+s2	0.4231	0	0.3987
+s3	0.5102	0.3987	0
+# window chrom=chr1 start=100000 end=200000 nvariants=917 nsamples=3
+...
+```
+
+`VCF2DIST --long`; single TSV with one row per sample pair per window:
+
+```text
+chrom	start	end	sample_i	sample_j	dist
+chr1	0	100000	s1	s2	0.4231
+chr1	0	100000	s1	s3	0.5102
+chr1	0	100000	s2	s3	0.3987
+...
+```
+
+`VCF2TREE`; one Newick tree per window, prefixed by a header comment:
+
+```text
+# window chrom=chr1 start=0 end=100000 nvariants=842 nsamples=3
+(s1:0.21,(s2:0.19,s3:0.18):0.05);
+# window chrom=chr1 start=100000 end=200000 nvariants=917 nsamples=3
+(s2:0.20,(s1:0.22,s3:0.17):0.04);
+...
+```
+
+### Examples
+
+```bash
+# Distance matrices in 100kb tiled windows
+java -jar BioInfoJavaUtils.jar VCF2DIST \
+  -i samples.vcf.gz \
+  -o per_window.dist \
+  --window-bp 100000 \
+  -t 4
+
+# Long-form TSV, one matrix per 500 consecutive variants
+java -jar BioInfoJavaUtils.jar VCF2DIST \
+  -i samples.vcf.gz \
+  -o per_window.tsv \
+  --window-variants 500 \
+  --long \
+  -t 4
+
+# Per-window phylogenetic trees (Newick)
+java -jar BioInfoJavaUtils.jar VCF2TREE \
+  -i samples.vcf.gz \
+  -o per_window.nwk \
+  --window-bp 250000 \
+  -t 4
+
+# Skip windows with fewer than 50 variants
+java -jar BioInfoJavaUtils.jar VCF2DIST \
+  -i samples.vcf.gz \
+  -o per_window.dist \
+  --window-bp 100000 \
+  --min-variants 50
+```
+
+### Limitations
+
+- **Sliding windows** (`--step` different from window size) are reserved for a future release; passing them throws an error.
+- **Bootstrap** (`-b` / `--bootstrap`) is rejected when combined with windowing.
+- **Embeddings** (`-e` / `--embeddings`) are rejected when combined with windowing.
 
 ## License
 

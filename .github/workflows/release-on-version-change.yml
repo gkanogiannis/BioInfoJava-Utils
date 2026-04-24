@@ -149,9 +149,8 @@ jobs:
           PREV_MIN=${{ steps.prev.outputs.prev_minor }}
 
           SHOULD_RELEASE="no"
-          if [ "$CUR_MAJ" != "$PREV_MAJ" ] || [ "$CUR_MIN" != "$PREV_MIN" ]; then
-            SHOULD_RELEASE="yes"
-          fi
+          
+          SHOULD_RELEASE="yes"
 
           echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 

@@ -42,7 +42,7 @@ public class UtilFASTA2TREE {
 	}
 
 	public static String getUtilName() {
-		return "FASTA2DIST";
+		return "FASTA2TREE";
 	}
 
 	@Parameter(names = "--help", help = true)

@@ -5,12 +5,13 @@
     <groupId>com.gkanogiannis</groupId>
     <artifactId>BioInfoJavaUtils</artifactId>
     <name>BioInfoJavaUtils</name>
-    <version>2.7.0</version>
+    <version>2.7.1</version>
     <description>
-        2.7.0: 2026-04-22: Windowed / streaming VCF distance and tree output for VCF2DIST and VCF2TREE.
+        2.7.1: 2026-04-24: Minor bug fix in VCF2TREE.
     </description>
 
     <contributors>
+        <contributor><name>2.7.1: 2026-04-24: Minor bug fix in VCF2TREE.</name></contributor>
         <contributor><name>2.7.0: 2026-04-22: Windowed / streaming VCF distance and tree output for VCF2DIST and VCF2TREE.</name></contributor>
         <contributor><name>2.6.0: 2026-04-21: Fixing target Java release to 11 and update fasta processing.</name></contributor>
         <contributor><name>2.5.0: 2026-02-02: Added embedding-based distance calculation for VCF files.</name></contributor>
